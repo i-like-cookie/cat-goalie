@@ -1,0 +1,2810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Goalie Challenge</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      border: 2px solid #333;
+      border-radius: 4px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    }
+    #cheatBar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #0a0a0a;
+      border: none;
+      border-top: 1px solid #222;
+      color: #333;
+      font-size: 12px;
+      padding: 4px 10px;
+      outline: none;
+      font-family: monospace;
+    }
+    #cheatBar::placeholder { color: #1a1a1a; }
+    #cheatBar:focus { color: #888; border-top-color: #444; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <input type="text" id="cheatBar" placeholder="..." autocomplete="off">
+  <script>
+    // ============================================================
+    // CONFIGURATION
+    // ============================================================
+    const CONFIG = {
+      CANVAS: { WIDTH: 800, HEIGHT: 600 },
+
+      PITCH: {
+        COLOR: '#2d8a4e',
+        STRIPE_COLOR: 'rgba(255,255,255,0.03)',
+        LINE_COLOR: '#ffffff',
+        CENTER_CIRCLE_RADIUS: 60,
+        PENALTY_BOX: { WIDTH: 300, HEIGHT: 120 },
+        SIX_YARD_BOX: { WIDTH: 160, HEIGHT: 50 },
+      },
+
+      GOAL: {
+        WIDTH: 200,
+        POST_WIDTH: 6,
+        POST_COLOR: '#ffffff',
+        NET_COLOR: 'rgba(200,200,200,0.3)',
+        Y: 560,
+      },
+
+      GOALIE: {
+        WIDTH: 50,
+        HEIGHT: 16,
+        COLOR: '#f59e0b',
+        SPEED: 6,
+        DIVE_SPEED: 10,
+      },
+
+      KICKER: {
+        RADIUS: 14,
+        COLOR: '#ef4444',
+        MOVE_SPEED: 1.5,
+        MOVE_RANGE_X: [200, 600],
+        MOVE_RANGE_Y: [60, 160],
+        WIND_UP_TIME: 800,
+        COOLDOWN_MIN: 1500,
+        COOLDOWN_MAX: 3000,
+      },
+
+      BALL: {
+        RADIUS: 6,
+        COLOR: '#ffffff',
+        OUTLINE_COLOR: '#333333',
+        MIN_SPEED: 4,
+        MAX_SPEED: 8,
+        SPEED_INCREMENT: 0.3,
+        ULTRA_FAST_MULTIPLIER: 3.5,
+        ZIGZAG_AMPLITUDE: 3.5,
+        ZIGZAG_FREQUENCY: 0.15,
+      },
+
+      GAME: {
+        MAX_GOALS: 3,
+        ROUNDS_PER_SPEED_BUMP: 5,
+      },
+
+      PARTICLES: {
+        SAVE_COLOR: '#22c55e',
+        GOAL_COLOR: '#ef4444',
+        WIDE_COLOR: '#94a3b8',
+        COUNT: 15,
+      },
+
+      KAMEHAMEHA: {
+        SPEED_MULTIPLIER: 35,
+        PHASE_TRANSFORM_1: 800,
+        PHASE_TRANSFORM_2: 600,
+        PHASE_TRANSFORM_3: 400,
+        PHASE_BEAM_CHARGE: 500,
+        PHASE_BEAM_FIRE: 400,
+        PHASE_BALL_LAUNCH: 200,
+        SHAKE_INTENSITY: 12,
+        SHAKE_DURATION: 500,
+        EXPLOSION_PARTICLE_COUNT: 80,
+      },
+    };
+
+    const GameState = Object.freeze({
+      START: 'start',
+      PLAYING: 'playing',
+      KAMEHAMEHA: 'kamehameha',
+      GOAL_SCORED: 'goal_scored',
+      SAVE_MADE: 'save_made',
+      GAME_OVER: 'game_over',
+      MAIN_MENU: 'main_menu',
+      WAITING_FOR_MATCH: 'waiting_for_match',
+      MP_ROUND_START: 'mp_round_start',
+      MP_PLAYING: 'mp_playing',
+      MP_KAMEHAMEHA: 'mp_kamehameha',
+      MP_GOAL: 'mp_goal',
+      MP_SAVE: 'mp_save',
+      MP_GAME_OVER: 'mp_game_over',
+    });
+
+    // ============================================================
+    // UTILITIES
+    // ============================================================
+    function randomRange(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function rectCircleCollision(rect, circle) {
+      const closestX = Math.max(rect.x - rect.width / 2, Math.min(circle.x, rect.x + rect.width / 2));
+      const closestY = Math.max(rect.y - rect.height / 2, Math.min(circle.y, rect.y + rect.height / 2));
+      const dx = circle.x - closestX;
+      const dy = circle.y - closestY;
+      return (dx * dx + dy * dy) < (circle.radius * circle.radius);
+    }
+
+    // ============================================================
+    // GAME STATE
+    // ============================================================
+    let state = GameState.MAIN_MENU;
+    let lastTime = 0;
+    let saves = 0;
+    let goalsConceded = 0;
+    let totalShots = 0;
+    let streak = 0;
+    let bestStreak = 0;
+    let difficultyLevel = 0;
+    let flashTimer = 0;
+    let flashMessage = '';
+
+    const keys = {};
+
+    let animTime = 0; // global animation clock
+
+    // Multiplayer state
+    let gameMode = 'single';
+    let mpAttacker = 1;
+    let mpScores = [0, 0];
+    let mpShotType = 'normal';
+    let mpShotTarget = 400;
+    let mpRoundTimer = 0;
+    let mpResultTimer = 0;
+    let mpResultMessage = '';
+    let mpWaitDots = 0;
+    let mpWaitTimer = 0;
+    let mpRoundCount = 0;
+    const mpWinTarget = 3;
+    let menuHoverButton = -1;
+    let menuButtons = [];
+
+    // Network multiplayer
+    let ws = null;
+    let myPlayerNum = 0;
+    let mpConnStatus = '';
+    let mpUpdateCounter = 0;
+    // Remote state for attacker view (received from defender)
+    let remoteBall = { x: 0, y: 0, active: false };
+    let remoteGoalie = { x: 400, isDiving: false, diveDir: 0, diveTimer: 0, walkCycle: 0, isMoving: false };
+
+    const goalie = {
+      x: CONFIG.CANVAS.WIDTH / 2,
+      y: CONFIG.GOAL.Y,
+      width: CONFIG.GOALIE.WIDTH,
+      height: CONFIG.GOALIE.HEIGHT,
+      walkCycle: 0,
+      isMoving: false,
+      isDiving: false,
+      diveDir: 0,       // -1 left, 1 right
+      diveTimer: 0,
+    };
+
+    const kicker = {
+      x: CONFIG.CANVAS.WIDTH / 2,
+      y: 100,
+      radius: CONFIG.KICKER.RADIUS,
+      targetX: 400,
+      targetY: 100,
+      phase: 'wandering',
+      windUpTimer: 0,
+      cooldownTimer: 2000,
+      shotType: 'normal',
+      walkCycle: 0,
+      isMoving: false,
+      kickTimer: 0,      // counts up when kicking
+      kickDuration: 15,   // frames for kick animation
+    };
+
+    const ball = {
+      x: 0, y: 0,
+      vx: 0, vy: 0,
+      radius: CONFIG.BALL.RADIUS,
+      active: false,
+      trail: [],
+      type: 'normal',
+      zigzagTimer: 0,
+    };
+
+    const particles = [];
+
+    const kamehameha = {
+      active: false,
+      phase: 'none',
+      phaseTimer: 0,
+      totalTimer: 0,
+      gokuX: 400,
+      gokuY: 350,
+      gokuScale: 1,
+      hairSpike: 0,
+      auraIntensity: 0,
+      isSuper: false,
+      beamLength: 0,
+      beamWidth: 0,
+      energyBallRadius: 0,
+      shakeTimer: 0,
+      shakeIntensity: 0,
+      whiteFlashAlpha: 0,
+      bgDarken: 0,
+      textAlpha: 0,
+      textScale: 1,
+      savedTargetX: 0,
+      hairOffsets: [],
+      // Explosion animation state
+      explosionActive: false,
+      explosionTimer: 0,
+      explosionDuration: 90, // frames
+      explosionX: 400,
+      explosionY: 400,
+      explosionRings: [],
+      explosionFireballs: [],
+      explosionResultType: 'goal', // 'goal' or 'wide' for MP
+    };
+
+    // ============================================================
+    // INPUT
+    // ============================================================
+    function setupInput() {
+      window.addEventListener('keydown', (e) => {
+        keys[e.key.toLowerCase()] = true;
+        if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown', ' '].includes(e.key.toLowerCase())) {
+          e.preventDefault();
+        }
+        // Single player start/restart
+        if (e.key === ' ' || e.key === 'Enter') {
+          if (state === GameState.START) startGame();
+          else if (state === GameState.GAME_OVER) restartGame();
+        }
+        // Main menu
+        if (state === GameState.MAIN_MENU) {
+          if (e.key === '1') startSinglePlayer();
+          if (e.key === '2') startMultiplayerWait();
+        }
+        // Waiting for match
+        if (state === GameState.WAITING_FOR_MATCH) {
+          if (e.key === 'Escape') {
+            if (ws) { ws.close(); ws = null; }
+            state = GameState.MAIN_MENU;
+          }
+        }
+        // MP kick
+        if (state === GameState.MP_ROUND_START) {
+          if (e.key.toLowerCase() === 'e') mpFireShot();
+        }
+        // MP game over
+        if (state === GameState.MP_GAME_OVER) {
+          if (e.key === ' ' || e.key === 'Enter') {
+            if (ws) { ws.close(); ws = null; }
+            state = GameState.MAIN_MENU;
+          }
+        }
+      });
+      window.addEventListener('keyup', (e) => {
+        keys[e.key.toLowerCase()] = false;
+      });
+
+      // Mouse support for main menu
+      canvas.addEventListener('mousemove', (e) => {
+        if (state !== GameState.MAIN_MENU) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (CONFIG.CANVAS.WIDTH / rect.width);
+        const my = (e.clientY - rect.top) * (CONFIG.CANVAS.HEIGHT / rect.height);
+        menuHoverButton = -1;
+        for (let i = 0; i < menuButtons.length; i++) {
+          const b = menuButtons[i];
+          if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+            menuHoverButton = i;
+          }
+        }
+      });
+      canvas.addEventListener('click', (e) => {
+        if (state !== GameState.MAIN_MENU && state !== GameState.WAITING_FOR_MATCH) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (CONFIG.CANVAS.WIDTH / rect.width);
+        const my = (e.clientY - rect.top) * (CONFIG.CANVAS.HEIGHT / rect.height);
+        if (state === GameState.MAIN_MENU) {
+          for (let i = 0; i < menuButtons.length; i++) {
+            const b = menuButtons[i];
+            if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+              if (i === 0) startSinglePlayer();
+              if (i === 1) startMultiplayerWait();
+            }
+          }
+        }
+      });
+    }
+
+    // ============================================================
+    // KICKER AI
+    // ============================================================
+    function pickNewKickerTarget() {
+      kicker.targetX = randomRange(CONFIG.KICKER.MOVE_RANGE_X[0], CONFIG.KICKER.MOVE_RANGE_X[1]);
+      kicker.targetY = randomRange(CONFIG.KICKER.MOVE_RANGE_Y[0], CONFIG.KICKER.MOVE_RANGE_Y[1]);
+    }
+
+    function getAdjustedCooldown() {
+      const reduction = difficultyLevel * 200;
+      const min = Math.max(800, CONFIG.KICKER.COOLDOWN_MIN - reduction);
+      const max = Math.max(1500, CONFIG.KICKER.COOLDOWN_MAX - reduction);
+      return randomRange(min, max);
+    }
+
+    function getTargetX() {
+      const goalLeft = (CONFIG.CANVAS.WIDTH - CONFIG.GOAL.WIDTH) / 2;
+      const cornerBias = Math.min(0.6, difficultyLevel * 0.12);
+
+      if (Math.random() < cornerBias) {
+        const cornerZone = CONFIG.GOAL.WIDTH * 0.25;
+        if (Math.random() < 0.5) {
+          return goalLeft + Math.random() * cornerZone;
+        }
+        return goalLeft + CONFIG.GOAL.WIDTH - Math.random() * cornerZone;
+      }
+      return goalLeft + 15 + Math.random() * (CONFIG.GOAL.WIDTH - 30);
+    }
+
+    function shootBall() {
+      if (ball.active) return;
+
+      const targetX = getTargetX();
+      const targetY = CONFIG.GOAL.Y;
+
+      const dx = targetX - kicker.x;
+      const dy = targetY - kicker.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const minSpeed = CONFIG.BALL.MIN_SPEED + difficultyLevel * CONFIG.BALL.SPEED_INCREMENT;
+      let speed = minSpeed + Math.random() * (CONFIG.BALL.MAX_SPEED - CONFIG.BALL.MIN_SPEED);
+      let clampedSpeed = Math.min(speed, CONFIG.BALL.MAX_SPEED + difficultyLevel * 0.5);
+
+      // Apply ultra fast multiplier
+      if (kicker.shotType === 'ultra_fast') {
+        clampedSpeed *= CONFIG.BALL.ULTRA_FAST_MULTIPLIER;
+      }
+
+      ball.x = kicker.x;
+      ball.y = kicker.y;
+      ball.vx = (dx / dist) * clampedSpeed;
+      ball.vy = (dy / dist) * clampedSpeed;
+      ball.active = true;
+      ball.trail = [];
+      ball.type = kicker.shotType;
+      ball.zigzagTimer = 0;
+      totalShots++;
+
+      if (totalShots % CONFIG.GAME.ROUNDS_PER_SPEED_BUMP === 0) {
+        difficultyLevel++;
+      }
+    }
+
+    // ============================================================
+    // UPDATE FUNCTIONS
+    // ============================================================
+    function updateGoalie(dt) {
+      let dx = 0;
+      if (keys['arrowleft'] || keys['a']) dx -= 1;
+      if (keys['arrowright'] || keys['d']) dx += 1;
+
+      const isDiving = keys['shift'] && dx !== 0;
+      const speed = isDiving ? CONFIG.GOALIE.DIVE_SPEED : CONFIG.GOALIE.SPEED;
+      goalie.x += dx * speed * dt;
+
+      goalie.isMoving = dx !== 0;
+      goalie.isDiving = isDiving;
+      if (dx !== 0) {
+        goalie.diveDir = dx;
+        goalie.walkCycle += 0.15 * dt;
+      }
+      if (isDiving) {
+        goalie.diveTimer = Math.min(goalie.diveTimer + 0.12 * dt, 1);
+      } else {
+        goalie.diveTimer = Math.max(goalie.diveTimer - 0.2 * dt, 0);
+      }
+
+      const halfW = goalie.width / 2;
+      const goalLeft = (CONFIG.CANVAS.WIDTH - CONFIG.GOAL.WIDTH) / 2;
+      const goalRight = goalLeft + CONFIG.GOAL.WIDTH;
+      goalie.x = Math.max(goalLeft + halfW, Math.min(goalRight - halfW, goalie.x));
+    }
+
+    function updateKicker(dt) {
+      // Tick down kick animation
+      if (kicker.kickTimer > 0) {
+        kicker.kickTimer -= dt;
+      }
+
+      if (kicker.phase === 'wandering') {
+        kicker.cooldownTimer -= 16.67 * dt;
+
+        const dx = kicker.targetX - kicker.x;
+        const dy = kicker.targetY - kicker.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 5) {
+          kicker.isMoving = false;
+          if (kicker.cooldownTimer <= 0) {
+            kicker.phase = 'winding_up';
+            kicker.windUpTimer = CONFIG.KICKER.WIND_UP_TIME;
+            const roll = Math.random();
+            if (roll < 0.01) kicker.shotType = 'kamehameha';
+            else if (roll < 0.11) kicker.shotType = 'ultra_fast';
+            else if (roll < 0.21) kicker.shotType = 'zigzag';
+            else kicker.shotType = 'normal';
+          }
+        } else {
+          kicker.isMoving = true;
+          kicker.walkCycle += 0.12 * dt;
+          const speed = CONFIG.KICKER.MOVE_SPEED * dt;
+          kicker.x += (dx / dist) * speed;
+          kicker.y += (dy / dist) * speed;
+        }
+      } else if (kicker.phase === 'winding_up') {
+        kicker.isMoving = false;
+        kicker.windUpTimer -= 16.67 * dt;
+        if (kicker.windUpTimer <= 0) {
+          if (kicker.shotType === 'kamehameha') {
+            startKamehameha();
+            return;
+          }
+          kicker.kickTimer = kicker.kickDuration;
+          shootBall();
+          kicker.phase = 'wandering';
+          kicker.cooldownTimer = getAdjustedCooldown();
+          pickNewKickerTarget();
+        }
+      }
+    }
+
+    function updateBall(dt) {
+      if (!ball.active) return;
+
+      ball.trail.push({ x: ball.x, y: ball.y });
+      if (ball.trail.length > 8) ball.trail.shift();
+
+      // Raycast for kamehameha ball (too fast for per-frame collision)
+      if (ball.type === 'kamehameha' && ball.vy > 0) {
+        const nextY = ball.y + ball.vy * dt;
+        if (ball.y < CONFIG.GOAL.Y && nextY >= CONFIG.GOAL.Y) {
+          const t = (CONFIG.GOAL.Y - ball.y) / (ball.vy * dt);
+          const crossX = ball.x + ball.vx * dt * t;
+          ball.x = crossX;
+          ball.y = CONFIG.GOAL.Y;
+          const goalLeft = (CONFIG.CANVAS.WIDTH - CONFIG.GOAL.WIDTH) / 2;
+          const goalRight = goalLeft + CONFIG.GOAL.WIDTH;
+          if (crossX >= goalLeft && crossX <= goalRight) {
+            onGoalScored();
+          } else {
+            onBallWide();
+          }
+          return;
+        }
+      }
+
+      ball.x += ball.vx * dt;
+      ball.y += ball.vy * dt;
+
+      // Zigzag: oscillate horizontally
+      if (ball.type === 'zigzag') {
+        ball.zigzagTimer += CONFIG.BALL.ZIGZAG_FREQUENCY * dt;
+        ball.x += Math.sin(ball.zigzagTimer) * CONFIG.BALL.ZIGZAG_AMPLITUDE * dt;
+      }
+
+      // Check collision with goalie
+      if (rectCircleCollision(goalie, ball)) {
+        onSave();
+        return;
+      }
+
+      // Check if ball crossed goal line
+      const goalLeft = (CONFIG.CANVAS.WIDTH - CONFIG.GOAL.WIDTH) / 2;
+      const goalRight = goalLeft + CONFIG.GOAL.WIDTH;
+
+      if (ball.y >= CONFIG.GOAL.Y) {
+        if (ball.x >= goalLeft && ball.x <= goalRight) {
+          onGoalScored();
+        } else {
+          onBallWide();
+        }
+        return;
+      }
+
+      // Ball off-screen
+      if (ball.x < -20 || ball.x > CONFIG.CANVAS.WIDTH + 20 || ball.y < -20) {
+        ball.active = false;
+      }
+    }
+
+    function updateParticles(dt) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= 0.02 * dt;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function updateFlash(dt) {
+      if (flashTimer > 0) {
+        flashTimer -= dt;
+        if (flashTimer <= 0) {
+          flashTimer = 0;
+          if (state !== GameState.GAME_OVER) {
+            state = GameState.PLAYING;
+            resetPositionsAfterShot();
+          }
+        }
+      }
+    }
+
+    // ============================================================
+    // EVENTS
+    // ============================================================
+    function createParticleBurst(x, y, color) {
+      for (let i = 0; i < CONFIG.PARTICLES.COUNT; i++) {
+        const angle = (Math.PI * 2 * i) / CONFIG.PARTICLES.COUNT;
+        const speed = 2 + Math.random() * 3;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color,
+          life: 1,
+          size: 3 + Math.random() * 3,
+        });
+      }
+    }
+
+    function onSave() {
+      ball.active = false;
+      if (gameMode === 'multi') { mpOnSave(); return; }
+      saves++;
+      streak++;
+      if (streak > bestStreak) bestStreak = streak;
+      createParticleBurst(ball.x, ball.y, CONFIG.PARTICLES.SAVE_COLOR);
+      flashMessage = 'SAVE!';
+      flashTimer = 60;
+      state = GameState.SAVE_MADE;
+    }
+
+    function onGoalScored() {
+      const wasKamehameha = ball.type === 'kamehameha';
+      ball.active = false;
+      if (gameMode === 'multi') { mpOnGoalScored(wasKamehameha); return; }
+      goalsConceded++;
+      streak = 0;
+      createParticleBurst(ball.x, ball.y, CONFIG.PARTICLES.GOAL_COLOR);
+
+      if (wasKamehameha) {
+        // Start explosion animation
+        startKamehamehaExplosion(ball.x, ball.y);
+        return;
+      }
+
+      flashMessage = 'GOAL!';
+      flashTimer = 90;
+
+      if (goalsConceded >= CONFIG.GAME.MAX_GOALS) {
+        state = GameState.GAME_OVER;
+      } else {
+        state = GameState.GOAL_SCORED;
+      }
+    }
+
+    function onBallWide() {
+      const wasKamehameha = ball.type === 'kamehameha';
+      ball.active = false;
+      if (gameMode === 'multi') { mpOnBallWide(wasKamehameha); return; }
+      createParticleBurst(ball.x, ball.y, CONFIG.PARTICLES.WIDE_COLOR);
+
+      if (wasKamehameha) {
+        startKamehamehaExplosion(ball.x, ball.y);
+        return;
+      }
+
+      flashMessage = 'WIDE!';
+      flashTimer = 40;
+      state = GameState.SAVE_MADE;
+    }
+
+    // ============================================================
+    // STATE MANAGEMENT
+    // ============================================================
+    function startGame() {
+      state = GameState.PLAYING;
+      saves = 0;
+      goalsConceded = 0;
+      totalShots = 0;
+      streak = 0;
+      bestStreak = 0;
+      difficultyLevel = 0;
+      ball.active = false;
+      ball.trail = [];
+      particles.length = 0;
+      flashTimer = 0;
+      goalie.x = CONFIG.CANVAS.WIDTH / 2;
+      goalie.y = CONFIG.GOAL.Y;
+      goalie.walkCycle = 0;
+      goalie.isMoving = false;
+      goalie.isDiving = false;
+      goalie.diveDir = 0;
+      goalie.diveTimer = 0;
+      kicker.x = CONFIG.CANVAS.WIDTH / 2;
+      kicker.y = 100;
+      kicker.phase = 'wandering';
+      kicker.cooldownTimer = randomRange(1000, 2000);
+      kicker.walkCycle = 0;
+      kicker.isMoving = false;
+      kicker.kickTimer = 0;
+      pickNewKickerTarget();
+      kamehameha.active = false;
+      kamehameha.phase = 'none';
+      kamehameha.shakeTimer = 0;
+      kamehameha.shakeIntensity = 0;
+      kamehameha.whiteFlashAlpha = 0;
+      kamehameha.explosionActive = false;
+    }
+
+    function restartGame() {
+      state = GameState.MAIN_MENU;
+      gameMode = 'single';
+    }
+
+    function resetPositionsAfterShot() {
+      ball.active = false;
+      ball.trail = [];
+      kicker.phase = 'wandering';
+      kicker.cooldownTimer = randomRange(800, 1500);
+      pickNewKickerTarget();
+    }
+
+    // ============================================================
+    // KAMEHAMEHA SYSTEM
+    // ============================================================
+    function startKamehameha() {
+      state = gameMode === 'multi' ? GameState.MP_KAMEHAMEHA : GameState.KAMEHAMEHA;
+      kamehameha.active = true;
+      kamehameha.phase = 'transform_1';
+      kamehameha.phaseTimer = CONFIG.KAMEHAMEHA.PHASE_TRANSFORM_1;
+      kamehameha.totalTimer = 0;
+      kamehameha.gokuX = kicker.x;
+      kamehameha.gokuY = kicker.y;
+      kamehameha.gokuScale = 0.5;
+      kamehameha.hairSpike = 0;
+      kamehameha.auraIntensity = 0;
+      kamehameha.isSuper = false;
+      kamehameha.beamLength = 0;
+      kamehameha.beamWidth = 0;
+      kamehameha.energyBallRadius = 0;
+      kamehameha.shakeTimer = 0;
+      kamehameha.shakeIntensity = 0;
+      kamehameha.whiteFlashAlpha = 0;
+      kamehameha.bgDarken = 0;
+      kamehameha.textAlpha = 0;
+      kamehameha.textScale = 1;
+      kamehameha.savedTargetX = getTargetX();
+      // Pre-generate hair spike offsets to avoid flicker
+      kamehameha.hairOffsets = [];
+      for (let i = 0; i < 7; i++) {
+        kamehameha.hairOffsets.push((Math.random() - 0.5) * 2);
+      }
+    }
+
+    function updateKamehameha(dt) {
+      if (!kamehameha.active) return;
+      const msPerFrame = 16.67;
+      kamehameha.totalTimer += msPerFrame * dt;
+      kamehameha.phaseTimer -= msPerFrame * dt;
+      const K = kamehameha;
+
+      switch (K.phase) {
+        case 'transform_1': {
+          const progress = 1 - (K.phaseTimer / CONFIG.KAMEHAMEHA.PHASE_TRANSFORM_1);
+          K.gokuX += (400 - K.gokuX) * 0.08 * dt;
+          K.gokuY += (320 - K.gokuY) * 0.08 * dt;
+          K.gokuScale = 0.5 + progress * 2.5;
+          K.bgDarken = progress * 0.7;
+          K.auraIntensity = progress * 0.4;
+          K.shakeIntensity = progress * 2;
+          if (K.phaseTimer <= 0) {
+            K.phase = 'transform_2';
+            K.phaseTimer = CONFIG.KAMEHAMEHA.PHASE_TRANSFORM_2;
+          }
+          break;
+        }
+        case 'transform_2': {
+          const progress = 1 - (K.phaseTimer / CONFIG.KAMEHAMEHA.PHASE_TRANSFORM_2);
+          K.hairSpike = progress;
+          K.auraIntensity = 0.4 + progress * 0.4;
+          K.shakeIntensity = 2 + progress * 4;
+          if (K.phaseTimer <= 0) {
+            K.phase = 'transform_3';
+            K.phaseTimer = CONFIG.KAMEHAMEHA.PHASE_TRANSFORM_3;
+          }
+          break;
+        }
+        case 'transform_3': {
+          const progress = 1 - (K.phaseTimer / CONFIG.KAMEHAMEHA.PHASE_TRANSFORM_3);
+          K.isSuper = true;
+          K.whiteFlashAlpha = progress < 0.3 ? progress / 0.3 : 1 - ((progress - 0.3) / 0.7);
+          K.auraIntensity = 0.8 + Math.sin(progress * Math.PI * 4) * 0.2;
+          K.shakeIntensity = 6 + progress * 4;
+          K.textAlpha = progress;
+          K.textScale = 0.5 + progress * 0.5;
+          if (K.phaseTimer <= 0) {
+            K.phase = 'beam_charge';
+            K.phaseTimer = CONFIG.KAMEHAMEHA.PHASE_BEAM_CHARGE;
+          }
+          break;
+        }
+        case 'beam_charge': {
+          const progress = 1 - (K.phaseTimer / CONFIG.KAMEHAMEHA.PHASE_BEAM_CHARGE);
+          K.energyBallRadius = progress * 25;
+          K.auraIntensity = 1;
+          K.shakeIntensity = 4 + progress * 3;
+          K.textAlpha = 1;
+          K.textScale = 1 + Math.sin(progress * Math.PI * 3) * 0.05;
+          if (K.phaseTimer <= 0) {
+            K.phase = 'beam_fire';
+            K.phaseTimer = CONFIG.KAMEHAMEHA.PHASE_BEAM_FIRE;
+          }
+          break;
+        }
+        case 'beam_fire': {
+          const progress = 1 - (K.phaseTimer / CONFIG.KAMEHAMEHA.PHASE_BEAM_FIRE);
+          K.beamLength = progress * 400;
+          K.beamWidth = 20 + progress * 15;
+          K.shakeIntensity = 8 + progress * 4;
+          K.energyBallRadius = 25 - progress * 10;
+          K.textAlpha = 1 - progress * 0.5;
+          if (K.phaseTimer <= 0) {
+            K.phase = 'ball_launch';
+            K.phaseTimer = CONFIG.KAMEHAMEHA.PHASE_BALL_LAUNCH;
+            fireKamehamehaBall();
+          }
+          break;
+        }
+        case 'ball_launch': {
+          const progress = 1 - (K.phaseTimer / CONFIG.KAMEHAMEHA.PHASE_BALL_LAUNCH);
+          K.beamLength = Math.max(0, 400 * (1 - progress * 2));
+          K.beamWidth = Math.max(0, 35 * (1 - progress));
+          K.bgDarken = 0.7 * (1 - progress);
+          K.auraIntensity = 1 - progress;
+          K.textAlpha = Math.max(0, 1 - progress * 2);
+          K.gokuScale = 3 * (1 - progress);
+          if (K.phaseTimer <= 0) {
+            triggerKamehamehaExplosion();
+            state = gameMode === 'multi' ? GameState.MP_PLAYING : GameState.PLAYING;
+            K.active = false;
+            K.phase = 'none';
+            kicker.kickTimer = kicker.kickDuration;
+            kicker.phase = 'wandering';
+            kicker.cooldownTimer = getAdjustedCooldown();
+            pickNewKickerTarget();
+          }
+          break;
+        }
+      }
+    }
+
+    function updateKamehamehaAfterEffects(dt) {
+      if (kamehameha.shakeTimer > 0) {
+        kamehameha.shakeTimer -= 16.67 * dt;
+        kamehameha.shakeIntensity *= 0.95;
+      } else {
+        kamehameha.shakeIntensity = 0;
+      }
+      if (kamehameha.whiteFlashAlpha > 0) {
+        kamehameha.whiteFlashAlpha -= 0.04 * dt;
+        if (kamehameha.whiteFlashAlpha < 0) kamehameha.whiteFlashAlpha = 0;
+      }
+    }
+
+    function fireKamehamehaBall() {
+      if (ball.active) return;
+      const targetX = kamehameha.savedTargetX;
+      const targetY = CONFIG.GOAL.Y;
+      const dx = targetX - kicker.x;
+      const dy = targetY - kicker.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minSpeed = CONFIG.BALL.MIN_SPEED + difficultyLevel * CONFIG.BALL.SPEED_INCREMENT;
+      let speed = minSpeed + Math.random() * (CONFIG.BALL.MAX_SPEED - CONFIG.BALL.MIN_SPEED);
+      let clampedSpeed = Math.min(speed, CONFIG.BALL.MAX_SPEED + difficultyLevel * 0.5);
+      clampedSpeed *= CONFIG.KAMEHAMEHA.SPEED_MULTIPLIER;
+      ball.x = kicker.x;
+      ball.y = kicker.y;
+      ball.vx = (dx / dist) * clampedSpeed;
+      ball.vy = (dy / dist) * clampedSpeed;
+      ball.active = true;
+      ball.trail = [];
+      ball.type = 'kamehameha';
+      ball.zigzagTimer = 0;
+      totalShots++;
+      if (totalShots % CONFIG.GAME.ROUNDS_PER_SPEED_BUMP === 0) {
+        difficultyLevel++;
+      }
+    }
+
+    function triggerKamehamehaExplosion() {
+      const colors = ['#3b82f6', '#60a5fa', '#93c5fd', '#ffffff', '#fbbf24', '#f59e0b'];
+      for (let i = 0; i < CONFIG.KAMEHAMEHA.EXPLOSION_PARTICLE_COUNT; i++) {
+        const angle = (Math.PI * 2 * i) / CONFIG.KAMEHAMEHA.EXPLOSION_PARTICLE_COUNT;
+        const speed = 3 + Math.random() * 8;
+        particles.push({
+          x: ball.x || 400,
+          y: ball.y || 300,
+          vx: Math.cos(angle) * speed + (Math.random() - 0.5) * 4,
+          vy: Math.sin(angle) * speed + (Math.random() - 0.5) * 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          life: 1.5 + Math.random(),
+          size: 3 + Math.random() * 6,
+        });
+      }
+      kamehameha.shakeTimer = CONFIG.KAMEHAMEHA.SHAKE_DURATION;
+      kamehameha.shakeIntensity = CONFIG.KAMEHAMEHA.SHAKE_INTENSITY;
+      kamehameha.whiteFlashAlpha = 1.0;
+    }
+
+    function startKamehamehaExplosion(x, y) {
+      kamehameha.explosionActive = true;
+      kamehameha.explosionTimer = 0;
+      kamehameha.explosionX = x;
+      kamehameha.explosionY = y;
+      kamehameha.shakeIntensity = CONFIG.KAMEHAMEHA.SHAKE_INTENSITY;
+      kamehameha.shakeTimer = 2000;
+      kamehameha.whiteFlashAlpha = 1.0;
+      // Create expanding rings
+      kamehameha.explosionRings = [];
+      for (let i = 0; i < 5; i++) {
+        kamehameha.explosionRings.push({
+          delay: i * 8,
+          radius: 0,
+          maxRadius: 150 + i * 80,
+          alpha: 1,
+          color: i % 2 === 0 ? '#60a5fa' : '#fbbf24',
+        });
+      }
+      // Create fireballs
+      kamehameha.explosionFireballs = [];
+      for (let i = 0; i < 20; i++) {
+        const angle = (Math.PI * 2 * i) / 20;
+        kamehameha.explosionFireballs.push({
+          x: 0, y: 0,
+          vx: Math.cos(angle) * (2 + Math.random() * 4),
+          vy: Math.sin(angle) * (2 + Math.random() * 4),
+          size: 8 + Math.random() * 15,
+          life: 1,
+        });
+      }
+      // Massive particle burst
+      const colors = ['#ff4500', '#ff6347', '#ffa500', '#ffd700', '#3b82f6', '#60a5fa', '#ffffff'];
+      for (let i = 0; i < 120; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 10;
+        particles.push({
+          x: x, y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          life: 1 + Math.random() * 2,
+          size: 2 + Math.random() * 8,
+        });
+      }
+    }
+
+    function updateKamehamehaExplosion(dt) {
+      if (!kamehameha.explosionActive) return;
+      kamehameha.explosionTimer += dt;
+      const t = kamehameha.explosionTimer;
+
+      // Update rings
+      for (const ring of kamehameha.explosionRings) {
+        if (t > ring.delay) {
+          const ringAge = t - ring.delay;
+          ring.radius = Math.min(ring.maxRadius, ringAge * 6);
+          ring.alpha = Math.max(0, 1 - ring.radius / ring.maxRadius);
+        }
+      }
+
+      // Update fireballs
+      for (const fb of kamehameha.explosionFireballs) {
+        fb.x += fb.vx * dt;
+        fb.y += fb.vy * dt;
+        fb.life -= 0.015 * dt;
+        fb.size *= 0.98;
+      }
+
+      // Screen shake decay
+      kamehameha.shakeIntensity = Math.max(0, CONFIG.KAMEHAMEHA.SHAKE_INTENSITY * (1 - t / kamehameha.explosionDuration));
+
+      // White flash decay
+      if (t < 10) {
+        kamehameha.whiteFlashAlpha = 1 - t / 10;
+      } else {
+        kamehameha.whiteFlashAlpha = 0;
+      }
+
+      // End explosion
+      if (t >= kamehameha.explosionDuration) {
+        kamehameha.explosionActive = false;
+        kamehameha.shakeIntensity = 0;
+        kamehameha.whiteFlashAlpha = 0;
+
+        if (gameMode === 'multi') {
+          const rtype = kamehameha.explosionResultType;
+          mpResultMessage = rtype === 'goal'
+            ? (mpAttacker === myPlayerNum ? 'GOAL! You scored!' : 'GOAL! Opponent scored!')
+            : 'WIDE!';
+          mpResultTimer = 90;
+          state = rtype === 'goal' ? GameState.MP_GOAL : GameState.MP_SAVE;
+          if (amIDefender()) {
+            sendToOpponent({ action: 'explosion_done', resultType: rtype });
+          }
+        } else {
+          flashMessage = 'GOAL!';
+          flashTimer = 90;
+          if (goalsConceded >= CONFIG.GAME.MAX_GOALS) {
+            state = GameState.GAME_OVER;
+          } else {
+            state = GameState.GOAL_SCORED;
+          }
+        }
+      }
+    }
+
+    function renderKamehamehaExplosion(ctx) {
+      if (!kamehameha.explosionActive) return;
+      const K = kamehameha;
+      const cx = K.explosionX;
+      const cy = K.explosionY;
+
+      // Expanding rings
+      for (const ring of K.explosionRings) {
+        if (ring.radius > 0 && ring.alpha > 0) {
+          ctx.strokeStyle = ring.color;
+          ctx.globalAlpha = ring.alpha * 0.7;
+          ctx.lineWidth = 4 + (1 - ring.alpha) * 8;
+          ctx.beginPath();
+          ctx.arc(cx, cy, ring.radius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Fireballs
+      for (const fb of K.explosionFireballs) {
+        if (fb.life > 0 && fb.size > 0.5) {
+          const fbx = cx + fb.x;
+          const fby = cy + fb.y;
+          const grad = ctx.createRadialGradient(fbx, fby, 0, fbx, fby, fb.size);
+          grad.addColorStop(0, `rgba(255, 255, 200, ${fb.life * 0.8})`);
+          grad.addColorStop(0.3, `rgba(255, 165, 0, ${fb.life * 0.6})`);
+          grad.addColorStop(0.7, `rgba(255, 69, 0, ${fb.life * 0.4})`);
+          grad.addColorStop(1, `rgba(255, 0, 0, 0)`);
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(fbx, fby, fb.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Central flash/glow
+      const flashProgress = K.explosionTimer / K.explosionDuration;
+      if (flashProgress < 0.3) {
+        const glowSize = 50 + flashProgress * 600;
+        const glowAlpha = 0.8 * (1 - flashProgress / 0.3);
+        const glowGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowSize);
+        glowGrad.addColorStop(0, `rgba(255, 255, 255, ${glowAlpha})`);
+        glowGrad.addColorStop(0.4, `rgba(100, 200, 255, ${glowAlpha * 0.5})`);
+        glowGrad.addColorStop(1, `rgba(30, 100, 255, 0)`);
+        ctx.fillStyle = glowGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, glowSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // "BOOM" text
+      if (flashProgress > 0.1 && flashProgress < 0.7) {
+        const textAlpha = flashProgress < 0.3 ? (flashProgress - 0.1) / 0.2 : 1 - (flashProgress - 0.3) / 0.4;
+        const textSize = 60 + flashProgress * 40;
+        ctx.save();
+        ctx.globalAlpha = textAlpha;
+        ctx.font = `bold ${Math.floor(textSize)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#ff4500';
+        ctx.shadowBlur = 20;
+        ctx.strokeStyle = '#8b0000';
+        ctx.lineWidth = 4;
+        ctx.strokeText('BOOM!', 400, 280);
+        ctx.fillStyle = '#ff6347';
+        ctx.fillText('BOOM!', 400, 280);
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+    }
+
+    // --- Goku Rendering ---
+    function renderGokuAura(ctx, K) {
+      const intensity = K.auraIntensity;
+      for (let i = 3; i >= 0; i--) {
+        const size = 30 + i * 15 + Math.sin(animTime * 0.3 + i) * 5;
+        const alpha = intensity * (0.15 - i * 0.03);
+        ctx.fillStyle = K.isSuper
+          ? `rgba(255, 215, 0, ${alpha})`
+          : `rgba(100, 180, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.6, size * 0.3);
+        ctx.quadraticCurveTo(-size * 0.8, -size * 0.2, -size * 0.3, -size * 0.8);
+        ctx.quadraticCurveTo(0, -size * 1.1 - Math.sin(animTime * 0.5) * 8, size * 0.3, -size * 0.8);
+        ctx.quadraticCurveTo(size * 0.8, -size * 0.2, size * 0.6, size * 0.3);
+        ctx.quadraticCurveTo(0, size * 0.5, -size * 0.6, size * 0.3);
+        ctx.fill();
+      }
+      // Lightning bolts
+      if (intensity > 0.5) {
+        ctx.strokeStyle = K.isSuper
+          ? `rgba(255, 255, 100, ${intensity * 0.8})`
+          : `rgba(150, 220, 255, ${intensity * 0.8})`;
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 4; i++) {
+          const angle = (animTime * 0.2 + i * Math.PI / 2) % (Math.PI * 2);
+          const r = 25 + (K.hairOffsets[i % K.hairOffsets.length] + 1) * 7.5;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
+          for (let j = 0; j < 3; j++) {
+            const jr = r + 5 + j * 5;
+            ctx.lineTo(
+              Math.cos(angle + 0.2) * jr + K.hairOffsets[(i + j) % K.hairOffsets.length] * 5,
+              Math.sin(angle + 0.2) * jr + K.hairOffsets[(i + j + 1) % K.hairOffsets.length] * 5
+            );
+          }
+          ctx.stroke();
+        }
+      }
+    }
+
+    function renderGoku(ctx) {
+      const K = kamehameha;
+      if (K.gokuScale <= 0) return;
+      ctx.save();
+      ctx.translate(K.gokuX, K.gokuY);
+      ctx.scale(K.gokuScale, K.gokuScale);
+
+      if (K.auraIntensity > 0) renderGokuAura(ctx, K);
+
+      const skinColor = '#ffcc99';
+      const giColor = '#e65100';
+      const giBlue = '#1565c0';
+      const beltColor = '#1a237e';
+      const bootColor = '#1565c0';
+      const hairColor = K.isSuper ? '#ffd700' : '#111111';
+      const isCharging = K.phase === 'beam_charge' || K.phase === 'beam_fire' || K.phase === 'ball_launch';
+
+      // Legs
+      ctx.strokeStyle = skinColor;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-6, 10); ctx.lineTo(-10, 25); ctx.lineTo(-8, 40); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, 10); ctx.lineTo(10, 25); ctx.lineTo(8, 40); ctx.stroke();
+      // Boots
+      ctx.strokeStyle = bootColor;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(-10, 25); ctx.lineTo(-8, 40); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(10, 25); ctx.lineTo(8, 40); ctx.stroke();
+
+      // Torso
+      ctx.fillStyle = giColor;
+      ctx.beginPath();
+      ctx.moveTo(-8, -8); ctx.lineTo(8, -8); ctx.lineTo(6, 12); ctx.lineTo(-6, 12);
+      ctx.closePath(); ctx.fill();
+      // Belt
+      ctx.fillStyle = beltColor;
+      ctx.fillRect(-7, 6, 14, 4);
+      // Collar
+      ctx.fillStyle = giBlue;
+      ctx.beginPath();
+      ctx.moveTo(-4, -8); ctx.lineTo(4, -8); ctx.lineTo(2, -4); ctx.lineTo(-2, -4);
+      ctx.closePath(); ctx.fill();
+
+      // Arms
+      ctx.strokeStyle = skinColor;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      if (isCharging) {
+        ctx.beginPath(); ctx.moveTo(-8, -4); ctx.lineTo(-4, 8); ctx.lineTo(0, 18); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(8, -4); ctx.lineTo(4, 8); ctx.lineTo(0, 18); ctx.stroke();
+        ctx.fillStyle = skinColor;
+        ctx.beginPath(); ctx.arc(0, 19, 4, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.moveTo(-8, -4); ctx.lineTo(-14, 2); ctx.lineTo(-12, -6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(8, -4); ctx.lineTo(14, 2); ctx.lineTo(12, -6); ctx.stroke();
+        ctx.fillStyle = skinColor;
+        ctx.beginPath(); ctx.arc(-12, -7, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(12, -7, 2.5, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Head
+      const headY = -18;
+      ctx.fillStyle = skinColor;
+      ctx.beginPath(); ctx.arc(0, headY, 8, 0, Math.PI * 2); ctx.fill();
+
+      // Hair
+      ctx.fillStyle = hairColor;
+      const spikeHeight = 6 + K.hairSpike * 12;
+      const numSpikes = 5;
+      ctx.beginPath();
+      ctx.moveTo(-7, headY - 3);
+      for (let i = 0; i < numSpikes; i++) {
+        const t = i / (numSpikes - 1);
+        const baseX = -6 + t * 12;
+        const tipX = -5 + t * 10 + K.hairOffsets[i % K.hairOffsets.length] * K.hairSpike;
+        const tipY = headY - 5 - spikeHeight + Math.abs(t - 0.5) * spikeHeight * 0.4;
+        ctx.lineTo(baseX, headY - 4);
+        ctx.lineTo(tipX, tipY);
+      }
+      ctx.lineTo(7, headY - 3);
+      ctx.closePath();
+      ctx.fill();
+      if (K.isSuper) {
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 15 + Math.sin(animTime * 0.3) * 5;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // Eyes
+      ctx.fillStyle = K.isSuper ? '#00e5ff' : '#111';
+      ctx.fillRect(-4, headY - 1, 2.5, 1.5);
+      ctx.fillRect(1.5, headY - 1, 2.5, 1.5);
+      // Eyebrows
+      ctx.strokeStyle = hairColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-5, headY - 3); ctx.lineTo(-1, headY - 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(5, headY - 3); ctx.lineTo(1, headY - 2); ctx.stroke();
+      // Mouth (yelling)
+      ctx.fillStyle = '#111';
+      ctx.beginPath(); ctx.ellipse(0, headY + 3, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+
+      ctx.restore();
+    }
+
+    function renderKamehamehaBeam(ctx) {
+      const K = kamehameha;
+      if (K.beamLength <= 0 && K.energyBallRadius <= 0) return;
+      const handY = K.gokuY + 19 * K.gokuScale;
+      const handX = K.gokuX;
+
+      // Energy ball at hands
+      if (K.energyBallRadius > 0) {
+        const ballR = K.energyBallRadius * K.gokuScale;
+        const grad = ctx.createRadialGradient(handX, handY, 0, handX, handY, ballR * 2);
+        grad.addColorStop(0, 'rgba(100, 200, 255, 0.8)');
+        grad.addColorStop(0.5, 'rgba(50, 100, 255, 0.4)');
+        grad.addColorStop(1, 'rgba(50, 100, 255, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(handX, handY, ballR * 2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(handX, handY, ballR * 0.4, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Beam
+      if (K.beamLength > 0) {
+        const beamEndY = handY + K.beamLength;
+        const bw = K.beamWidth;
+        const beamGrad = ctx.createLinearGradient(handX, handY, handX, beamEndY);
+        beamGrad.addColorStop(0, 'rgba(100, 200, 255, 0.9)');
+        beamGrad.addColorStop(0.5, 'rgba(50, 150, 255, 0.7)');
+        beamGrad.addColorStop(1, 'rgba(30, 100, 255, 0.3)');
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(handX - bw, handY);
+        ctx.lineTo(handX + bw, handY);
+        ctx.lineTo(handX + bw * 0.7, beamEndY);
+        ctx.lineTo(handX - bw * 0.7, beamEndY);
+        ctx.closePath(); ctx.fill();
+        // White core
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.beginPath();
+        ctx.moveTo(handX - bw * 0.3, handY);
+        ctx.lineTo(handX + bw * 0.3, handY);
+        ctx.lineTo(handX + bw * 0.15, beamEndY);
+        ctx.lineTo(handX - bw * 0.15, beamEndY);
+        ctx.closePath(); ctx.fill();
+        // Edge sparks
+        for (let i = 0; i < 6; i++) {
+          const t = K.hairOffsets[i % K.hairOffsets.length] * 0.5 + 0.5;
+          const sy = handY + t * K.beamLength;
+          const sx = handX + (K.hairOffsets[(i+1) % K.hairOffsets.length]) * bw;
+          ctx.fillStyle = `rgba(200, 230, 255, 0.7)`;
+          ctx.beginPath(); ctx.arc(sx, sy, 1 + Math.abs(K.hairOffsets[i % K.hairOffsets.length]) * 2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+
+    function renderKamehamehaText(ctx) {
+      const K = kamehameha;
+      if (K.textAlpha <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = K.textAlpha;
+      const fontSize = Math.floor(48 * K.textScale);
+      ctx.font = `bold ${fontSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const textY = K.gokuY - 60 * K.gokuScale;
+      ctx.shadowColor = '#3b82f6';
+      ctx.shadowBlur = 20;
+      ctx.strokeStyle = '#1e3a8a';
+      ctx.lineWidth = 3;
+      ctx.strokeText('KAMEHAMEHA!!!', 400, textY);
+      ctx.fillStyle = '#93c5fd';
+      ctx.fillText('KAMEHAMEHA!!!', 400, textY);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    function renderKamehamehaCutscene(ctx) {
+      const K = kamehameha;
+      renderPitch(ctx);
+      renderGoal(ctx);
+      renderKicker(ctx);
+      renderGoalie(ctx);
+      if (gameMode === 'multi') renderMPHUD(ctx); else renderHUD(ctx);
+      // Darken background
+      if (K.bgDarken > 0) {
+        ctx.fillStyle = `rgba(0, 0, 0, ${K.bgDarken})`;
+        ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+      }
+      renderGoku(ctx);
+      renderKamehamehaBeam(ctx);
+      renderBall(ctx);
+      renderKamehamehaText(ctx);
+      // White flash
+      if (K.whiteFlashAlpha > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, K.whiteFlashAlpha)})`;
+        ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+      }
+      renderParticles(ctx);
+    }
+
+    // ============================================================
+    // RENDERING
+    // ============================================================
+    function renderPitch(ctx) {
+      ctx.fillStyle = CONFIG.PITCH.COLOR;
+      ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+
+      // Grass stripes
+      for (let i = 0; i < CONFIG.CANVAS.HEIGHT; i += 40) {
+        if ((i / 40) % 2 === 0) {
+          ctx.fillStyle = CONFIG.PITCH.STRIPE_COLOR;
+          ctx.fillRect(0, i, CONFIG.CANVAS.WIDTH, 40);
+        }
+      }
+
+      ctx.strokeStyle = CONFIG.PITCH.LINE_COLOR;
+      ctx.lineWidth = 2;
+
+      // Outer boundary
+      ctx.strokeRect(40, 20, 720, 560);
+
+      // Center line
+      ctx.beginPath();
+      ctx.moveTo(40, 300);
+      ctx.lineTo(760, 300);
+      ctx.stroke();
+
+      // Center circle
+      ctx.beginPath();
+      ctx.arc(400, 300, CONFIG.PITCH.CENTER_CIRCLE_RADIUS, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Center spot
+      ctx.fillStyle = CONFIG.PITCH.LINE_COLOR;
+      ctx.beginPath();
+      ctx.arc(400, 300, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Penalty box (bottom)
+      const pbw = CONFIG.PITCH.PENALTY_BOX.WIDTH;
+      const pbh = CONFIG.PITCH.PENALTY_BOX.HEIGHT;
+      ctx.strokeRect((CONFIG.CANVAS.WIDTH - pbw) / 2, CONFIG.CANVAS.HEIGHT - 20 - pbh, pbw, pbh);
+
+      // Six-yard box (bottom)
+      const syw = CONFIG.PITCH.SIX_YARD_BOX.WIDTH;
+      const syh = CONFIG.PITCH.SIX_YARD_BOX.HEIGHT;
+      ctx.strokeRect((CONFIG.CANVAS.WIDTH - syw) / 2, CONFIG.CANVAS.HEIGHT - 20 - syh, syw, syh);
+
+      // Penalty spot
+      ctx.fillStyle = CONFIG.PITCH.LINE_COLOR;
+      ctx.beginPath();
+      ctx.arc(400, CONFIG.CANVAS.HEIGHT - 20 - pbh + 30, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function renderGoal(ctx) {
+      const goalLeft = (CONFIG.CANVAS.WIDTH - CONFIG.GOAL.WIDTH) / 2;
+      const goalRight = goalLeft + CONFIG.GOAL.WIDTH;
+      const goalY = CONFIG.GOAL.Y;
+      const netDepth = 25;
+
+      // Net background
+      ctx.fillStyle = CONFIG.GOAL.NET_COLOR;
+      ctx.fillRect(goalLeft, goalY, CONFIG.GOAL.WIDTH, netDepth);
+
+      // Net crosshatch
+      ctx.strokeStyle = 'rgba(180,180,180,0.4)';
+      ctx.lineWidth = 1;
+      for (let x = goalLeft; x <= goalRight; x += 10) {
+        ctx.beginPath();
+        ctx.moveTo(x, goalY);
+        ctx.lineTo(x, goalY + netDepth);
+        ctx.stroke();
+      }
+      for (let y = goalY; y <= goalY + netDepth; y += 8) {
+        ctx.beginPath();
+        ctx.moveTo(goalLeft, y);
+        ctx.lineTo(goalRight, y);
+        ctx.stroke();
+      }
+
+      // Goal posts
+      ctx.fillStyle = CONFIG.GOAL.POST_COLOR;
+      ctx.fillRect(goalLeft - CONFIG.GOAL.POST_WIDTH, goalY - 2, CONFIG.GOAL.POST_WIDTH, netDepth + 4);
+      ctx.fillRect(goalRight, goalY - 2, CONFIG.GOAL.POST_WIDTH, netDepth + 4);
+
+      // Crossbar
+      ctx.fillRect(goalLeft - CONFIG.GOAL.POST_WIDTH, goalY - 4, CONFIG.GOAL.WIDTH + CONFIG.GOAL.POST_WIDTH * 2, 4);
+    }
+
+    // ============================================================
+    // CAT RENDERING
+    // ============================================================
+    function drawCatLeg(ctx, x, y, angle, pawColor, dir) {
+      dir = dir || 1;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.strokeStyle = pawColor;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, 7 * dir);
+      ctx.stroke();
+      ctx.fillStyle = pawColor;
+      ctx.beginPath();
+      ctx.ellipse(0, 8 * dir, 2.5, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function renderCalicoCat(ctx, x, y, walkCycle, isDiving, diveDir, diveTimer) {
+      ctx.save();
+
+      const diveAngle = diveTimer * diveDir * 0.6;
+      const diveStretchX = diveTimer * diveDir * 12;
+      ctx.translate(x + diveStretchX, y);
+      ctx.rotate(diveAngle);
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath();
+      ctx.ellipse(1, 4, 12 + diveTimer * 4, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tail (toward goal = +Y)
+      ctx.strokeStyle = '#e87e24';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, 12);
+      const tailWag = Math.sin(animTime * 0.2) * 4;
+      ctx.quadraticCurveTo(-5 + tailWag, 22, -2 + tailWag, 28);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+
+      // Back legs (near tail, extend downward)
+      const walkSin = Math.sin(walkCycle * 6);
+      const backLegSwing = isDiving ? 0.4 : walkSin * 0.35;
+      drawCatLeg(ctx, -5, 6, -backLegSwing, '#333333');
+      drawCatLeg(ctx, 5, 6, backLegSwing, '#e87e24');
+
+      // Body
+      ctx.fillStyle = '#faf8f5';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 8, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Calico patches
+      ctx.fillStyle = '#e87e24';
+      ctx.beginPath();
+      ctx.ellipse(-3, 3, 4, 5, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#333333';
+      ctx.beginPath();
+      ctx.ellipse(4, -3, 3, 4, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Body outline
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 8, 12, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Front legs (near head, extend upward toward field)
+      const frontLegSwing = isDiving ? 0.6 * diveTimer : walkSin * 0.35;
+      const diveExtend = isDiving ? diveTimer * 5 : 0;
+      if (isDiving && diveTimer > 0.3) {
+        ctx.strokeStyle = '#faf8f5';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-6, -8);
+        ctx.lineTo(-8 + diveDir * diveExtend, -14 - diveExtend);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(6, -8);
+        ctx.lineTo(8 + diveDir * diveExtend, -14 - diveExtend);
+        ctx.stroke();
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath();
+        ctx.ellipse(-8 + diveDir * diveExtend, -15 - diveExtend, 3, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(8 + diveDir * diveExtend, -15 - diveExtend, 3, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        drawCatLeg(ctx, -5, -7, frontLegSwing, '#faf8f5', -1);
+        drawCatLeg(ctx, 5, -7, -frontLegSwing, '#333333', -1);
+        ctx.fillStyle = '#16a34a';
+        const lAngle = frontLegSwing;
+        const rAngle = -frontLegSwing;
+        ctx.beginPath();
+        ctx.arc(-5 + Math.sin(lAngle) * 7, -7 - Math.cos(lAngle) * 8, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(5 + Math.sin(rAngle) * 7, -7 - Math.cos(rAngle) * 8, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Head (toward field = -Y)
+      const headY = -13;
+      ctx.fillStyle = '#faf8f5';
+      ctx.beginPath();
+      ctx.arc(0, headY, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e87e24';
+      ctx.beginPath();
+      ctx.arc(-3, headY + 2, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ears (extend upward from head)
+      ctx.fillStyle = '#faf8f5';
+      ctx.beginPath();
+      ctx.moveTo(-5, headY - 5);
+      ctx.lineTo(-8, headY - 13);
+      ctx.lineTo(-1, headY - 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#e87e24';
+      ctx.beginPath();
+      ctx.moveTo(5, headY - 5);
+      ctx.lineTo(8, headY - 13);
+      ctx.lineTo(1, headY - 7);
+      ctx.closePath();
+      ctx.fill();
+
+      // Inner ears
+      ctx.fillStyle = '#f5b0b0';
+      ctx.beginPath();
+      ctx.moveTo(-4.5, headY - 6);
+      ctx.lineTo(-6.5, headY - 11);
+      ctx.lineTo(-2, headY - 7.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(4.5, headY - 6);
+      ctx.lineTo(6.5, headY - 11);
+      ctx.lineTo(2, headY - 7.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Nose
+      ctx.fillStyle = '#f5a0a0';
+      ctx.beginPath();
+      ctx.moveTo(0, headY + 0.5);
+      ctx.lineTo(-1.5, headY + 2);
+      ctx.lineTo(1.5, headY + 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Whiskers
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = 0.6;
+      for (const side of [-1, 1]) {
+        for (const wy of [-1, 0, 1]) {
+          ctx.beginPath();
+          ctx.moveTo(side * 3, headY + 1 + wy);
+          ctx.lineTo(side * 12, headY + 2 + wy * 2);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function renderSiameseCat(ctx, x, y, walkCycle, isMoving, kickTimer, kickDuration, windUpProgress) {
+      ctx.save();
+      ctx.translate(x, y);
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath();
+      ctx.ellipse(1, 4, 12, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const creamColor = '#f5e6d3';
+      const darkPoint = '#5a3825';
+
+      // Tail (away from goal = -Y)
+      ctx.strokeStyle = darkPoint;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, -12);
+      const tailWag = Math.sin(animTime * 0.18) * 5;
+      ctx.quadraticCurveTo(5 + tailWag, -22, 3 + tailWag, -28);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+
+      // Kicking animation
+      const isKicking = kickTimer > 0;
+      const kickProgress = isKicking ? kickTimer / kickDuration : 0;
+
+      // Back legs (near tail, extend upward)
+      const walkSin = Math.sin(walkCycle * 6);
+      const backLegSwing = isMoving ? walkSin * 0.35 : 0;
+      drawCatLeg(ctx, -5, -6, backLegSwing, darkPoint, -1);
+      drawCatLeg(ctx, 5, -6, -backLegSwing, darkPoint, -1);
+
+      // Body — cream oval
+      ctx.fillStyle = creamColor;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 8, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      // Front legs (toward goal = +Y, extend downward)
+      const frontLegSwing = isMoving ? walkSin * 0.35 : 0;
+      if (isKicking) {
+        drawCatLeg(ctx, -5, 7, 0, darkPoint);
+        const kickAngle = Math.sin(kickProgress * Math.PI) * 1.2;
+        ctx.save();
+        ctx.translate(5, 7);
+        ctx.rotate(kickAngle);
+        ctx.strokeStyle = darkPoint;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, 10);
+        ctx.stroke();
+        ctx.fillStyle = darkPoint;
+        ctx.beginPath();
+        ctx.ellipse(0, 11, 3, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else if (windUpProgress > 0) {
+        drawCatLeg(ctx, -5, 5, -0.2, darkPoint);
+        drawCatLeg(ctx, 5, 5, 0.2, darkPoint);
+      } else {
+        drawCatLeg(ctx, -5, 7, -frontLegSwing, darkPoint);
+        drawCatLeg(ctx, 5, 7, frontLegSwing, darkPoint);
+      }
+
+      // Head (toward goal = +Y)
+      const headY = 13;
+      const crouchY = windUpProgress > 0 ? windUpProgress * -3 : 0;
+      const headDrawY = headY + crouchY;
+
+      ctx.fillStyle = creamColor;
+      ctx.beginPath();
+      ctx.arc(0, headDrawY, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = darkPoint;
+      ctx.beginPath();
+      ctx.ellipse(0, headDrawY - 1, 5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = creamColor;
+      ctx.beginPath();
+      ctx.ellipse(0, headDrawY - 3, 3, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ears (extend upward from head, toward tail)
+      ctx.fillStyle = darkPoint;
+      ctx.beginPath();
+      ctx.moveTo(-5, headDrawY - 5);
+      ctx.lineTo(-8, headDrawY - 13);
+      ctx.lineTo(-1, headDrawY - 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(5, headDrawY - 5);
+      ctx.lineTo(8, headDrawY - 13);
+      ctx.lineTo(1, headDrawY - 7);
+      ctx.closePath();
+      ctx.fill();
+
+      // Inner ears
+      ctx.fillStyle = '#d4a0a0';
+      ctx.beginPath();
+      ctx.moveTo(-4.5, headDrawY - 6);
+      ctx.lineTo(-6.5, headDrawY - 11);
+      ctx.lineTo(-2, headDrawY - 7.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(4.5, headDrawY - 6);
+      ctx.lineTo(6.5, headDrawY - 11);
+      ctx.lineTo(2, headDrawY - 7.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Eyes (on the face side, flanking the muzzle)
+      ctx.fillStyle = '#60a5fa';
+      ctx.beginPath();
+      ctx.ellipse(-3, headDrawY - 1, 1.8, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(3, headDrawY - 1, 1.8, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      const pupilW = windUpProgress > 0 ? 0.5 : 1;
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.ellipse(-3, headDrawY - 1, pupilW, 1.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(3, headDrawY - 1, pupilW, 1.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Nose
+      ctx.fillStyle = '#c08080';
+      ctx.beginPath();
+      ctx.moveTo(0, headDrawY - 2.5);
+      ctx.lineTo(-1.5, headDrawY - 4);
+      ctx.lineTo(1.5, headDrawY - 4);
+      ctx.closePath();
+      ctx.fill();
+
+      // Whiskers
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 0.6;
+      for (const side of [-1, 1]) {
+        for (const wy of [-1, 0, 1]) {
+          ctx.beginPath();
+          ctx.moveTo(side * 3, headDrawY - 3 + wy);
+          ctx.lineTo(side * 12, headDrawY - 4 + wy * 2);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function renderGoalie(ctx) {
+      renderCalicoCat(ctx, goalie.x, goalie.y,
+        goalie.walkCycle, goalie.isDiving, goalie.diveDir, goalie.diveTimer);
+    }
+
+    function renderKicker(ctx) {
+      const windUpProgress = kicker.phase === 'winding_up'
+        ? 1 - (kicker.windUpTimer / CONFIG.KICKER.WIND_UP_TIME) : 0;
+
+      renderSiameseCat(ctx, kicker.x, kicker.y,
+        kicker.walkCycle, kicker.isMoving,
+        kicker.kickTimer, kicker.kickDuration, windUpProgress);
+
+      // Wind-up halo — color depends on shot type
+      if (kicker.phase === 'winding_up') {
+        const progress = windUpProgress;
+        let haloColor;
+        if (kicker.shotType === 'kamehameha') {
+          const pulse = Math.sin(animTime * 0.5) * 0.2;
+          haloColor = `rgba(30, 144, 255, ${0.6 + progress * 0.4 + pulse})`;
+          // Inner halo
+          ctx.strokeStyle = `rgba(100, 200, 255, ${0.3 + progress * 0.5})`;
+          ctx.lineWidth = 1 + progress * 2;
+          ctx.beginPath();
+          ctx.arc(kicker.x, kicker.y, 18 + progress * 5, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (kicker.shotType === 'ultra_fast') {
+          haloColor = `rgba(34, 197, 94, ${0.5 + progress * 0.5})`;
+        } else if (kicker.shotType === 'zigzag') {
+          haloColor = `rgba(168, 85, 247, ${0.5 + progress * 0.5})`;
+        } else {
+          haloColor = `rgba(255, 255, 0, ${0.5 + progress * 0.5})`;
+        }
+        ctx.strokeStyle = haloColor;
+        ctx.lineWidth = 2 + progress * 3;
+        ctx.beginPath();
+        ctx.arc(kicker.x, kicker.y, 22 + progress * 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    function renderBall(ctx) {
+      if (!ball.active) return;
+
+      // Trail — color-coded by shot type
+      ball.trail.forEach((pos, i) => {
+        const alpha = (i / ball.trail.length) * 0.4;
+        if (ball.type === 'kamehameha') {
+          ctx.fillStyle = `rgba(30, 144, 255, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, ball.radius * 1.5 * (i / ball.trail.length), 0, Math.PI * 2);
+          ctx.fill();
+        } else if (ball.type === 'ultra_fast') {
+          ctx.fillStyle = `rgba(34, 197, 94, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, ball.radius * (i / ball.trail.length), 0, Math.PI * 2);
+          ctx.fill();
+        } else if (ball.type === 'zigzag') {
+          ctx.fillStyle = `rgba(168, 85, 247, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, ball.radius * (i / ball.trail.length), 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, ball.radius * (i / ball.trail.length), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath();
+      ctx.ellipse(ball.x + 2, ball.y + 2, ball.radius, ball.radius * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ball
+      ctx.fillStyle = CONFIG.BALL.COLOR;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = CONFIG.BALL.OUTLINE_COLOR;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Blue glow for kamehameha ball
+      if (ball.type === 'kamehameha') {
+        const glowGrad = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, ball.radius * 4);
+        glowGrad.addColorStop(0, 'rgba(100, 200, 255, 0.6)');
+        glowGrad.addColorStop(1, 'rgba(30, 100, 255, 0)');
+        ctx.fillStyle = glowGrad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius * 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function renderParticles(ctx) {
+      particles.forEach(p => {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    function renderHUD(ctx) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, 36);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px Arial';
+      ctx.textBaseline = 'middle';
+
+      ctx.textAlign = 'left';
+      ctx.fillText(`Saves: ${saves}`, 15, 18);
+
+      ctx.textAlign = 'right';
+      ctx.fillText(`Streak: ${streak}`, 785, 18);
+
+      // Hearts for remaining lives
+      ctx.textAlign = 'center';
+      ctx.font = '16px Arial';
+      const remaining = CONFIG.GAME.MAX_GOALS - goalsConceded;
+      const heartStartX = 400 - (CONFIG.GAME.MAX_GOALS * 10);
+      for (let i = 0; i < CONFIG.GAME.MAX_GOALS; i++) {
+        ctx.fillStyle = i < remaining ? '#ef4444' : '#555555';
+        ctx.fillText('\u2764', heartStartX + i * 22, 18);
+      }
+    }
+
+    function renderFlashMessage(ctx) {
+      if (flashTimer <= 0) return;
+
+      const alpha = Math.min(1, flashTimer / 20);
+      const scale = 1 + (60 - Math.min(flashTimer, 60)) * 0.008;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      if (flashMessage === 'SAVE!') ctx.fillStyle = '#22c55e';
+      else if (flashMessage === 'GOAL!') ctx.fillStyle = '#ef4444';
+      else ctx.fillStyle = '#94a3b8';
+      ctx.font = `bold ${Math.floor(56 * scale)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Text shadow
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 8;
+      ctx.fillText(flashMessage, 400, 280);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    function renderStartScreen(ctx) {
+      renderPitch(ctx);
+      renderGoal(ctx);
+
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 48px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CAT GOALIE', 400, 160);
+
+      ctx.font = '60px Arial';
+      ctx.fillText('\uD83D\uDC31\u26BD', 400, 240);
+
+      ctx.font = '18px Arial';
+      ctx.fillStyle = '#cccccc';
+      ctx.fillText('Use LEFT/RIGHT arrows or A/D to move', 400, 320);
+      ctx.fillText('Hold SHIFT for a diving save', 400, 350);
+      ctx.fillText('Block the shots! 3 goals and you\'re out.', 400, 390);
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 22px Arial';
+      const pulse = 0.7 + Math.sin(Date.now() / 400) * 0.3;
+      ctx.globalAlpha = pulse;
+      ctx.fillText('Press SPACE or ENTER to start', 400, 470);
+      ctx.globalAlpha = 1;
+    }
+
+    function renderGameOverScreen(ctx) {
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 52px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('GAME OVER', 400, 150);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '24px Arial';
+      let displaySaves = saves;
+      let displayShots = totalShots;
+      let pct = totalShots > 0 ? Math.round((saves / totalShots) * 100) : 0;
+      if (saves > totalShots) {
+        displaySaves = saves;
+        displayShots = saves + Math.max(1, Math.round(saves / 99));
+        pct = 99;
+      }
+      ctx.fillText(`Total Saves: ${displaySaves}`, 400, 250);
+      ctx.fillText(`Total Shots: ${displayShots}`, 400, 290);
+      ctx.fillText(`Best Streak: ${bestStreak}`, 400, 330);
+
+      ctx.fillText(`Save Rate: ${pct}%`, 400, 370);
+
+      // Rating
+      ctx.font = 'bold 28px Arial';
+      if (pct >= 80) { ctx.fillStyle = '#22c55e'; ctx.fillText('World Class!', 400, 420); }
+      else if (pct >= 60) { ctx.fillStyle = '#fbbf24'; ctx.fillText('Great Effort!', 400, 420); }
+      else if (pct >= 40) { ctx.fillStyle = '#f97316'; ctx.fillText('Not Bad!', 400, 420); }
+      else { ctx.fillStyle = '#ef4444'; ctx.fillText('Keep Practicing!', 400, 420); }
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 22px Arial';
+      const pulse = 0.7 + Math.sin(Date.now() / 400) * 0.3;
+      ctx.globalAlpha = pulse;
+      ctx.fillText('Press SPACE or ENTER to play again', 400, 500);
+      ctx.globalAlpha = 1;
+    }
+
+    // ============================================================
+    // MULTIPLAYER SYSTEM (Online WebSocket)
+    // ============================================================
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function sendToOpponent(data) {
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'game', data: data }));
+      }
+    }
+
+    // Set this to your deployed WebSocket server URL (e.g. 'wss://cat-goalie-server.onrender.com')
+    // Leave empty to auto-detect (works for local dev and same-host deployments)
+    const WS_SERVER_URL = '';
+
+    function connectToServer() {
+      let wsUrl;
+      if (WS_SERVER_URL) {
+        wsUrl = WS_SERVER_URL;
+      } else if (window.location.protocol === 'file:') {
+        wsUrl = 'ws://localhost:3000';
+      } else {
+        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = proto + '//' + window.location.host;
+      }
+      mpConnStatus = 'Connecting...';
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (e) {
+        mpConnStatus = 'Connection failed!';
+        return;
+      }
+      ws.onopen = () => {
+        mpConnStatus = 'Waiting for opponent...';
+        ws.send(JSON.stringify({ type: 'find_match' }));
+      };
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'waiting') {
+          mpConnStatus = 'Waiting for opponent...';
+        } else if (msg.type === 'matched') {
+          myPlayerNum = msg.playerNum;
+          mpConnStatus = 'Match found! You are Player ' + myPlayerNum;
+          startMultiplayerGame();
+        } else if (msg.type === 'game') {
+          handleGameMessage(msg.data);
+        } else if (msg.type === 'opponent_disconnected') {
+          mpConnStatus = 'Opponent disconnected!';
+          mpResultMessage = 'Opponent disconnected!';
+          mpResultTimer = 120;
+          setTimeout(() => {
+            if (ws) { ws.close(); ws = null; }
+            state = GameState.MAIN_MENU;
+          }, 2000);
+        }
+      };
+      ws.onerror = () => {
+        mpConnStatus = 'Connection failed! Is the server running?';
+      };
+      ws.onclose = () => {
+        if (state === GameState.WAITING_FOR_MATCH) {
+          mpConnStatus = 'Disconnected from server';
+        }
+      };
+    }
+
+    function handleGameMessage(data) {
+      switch (data.action) {
+        case 'round_info':
+          mpAttacker = data.attacker;
+          mpShotType = data.shotType;
+          mpShotTarget = data.shotTarget;
+          mpRoundCount = data.roundCount;
+          mpApplyRound();
+          break;
+        case 'kick':
+          // Opponent (attacker) kicked - I'm defending
+          kicker.kickTimer = kicker.kickDuration;
+          kicker.shotType = mpShotType;
+          ball.x = data.startX;
+          ball.y = data.startY;
+          ball.vx = data.ballVx;
+          ball.vy = data.ballVy;
+          ball.active = true;
+          ball.trail = [];
+          ball.type = mpShotType;
+          ball.zigzagTimer = 0;
+          state = GameState.MP_PLAYING;
+          break;
+        case 'kamehameha_start':
+          // Opponent started kamehameha - I'm defending, play cutscene
+          kicker.shotType = 'kamehameha';
+          kamehameha.savedTargetX = data.savedTargetX;
+          startKamehameha();
+          break;
+        case 'game_update':
+          // I'm attacking - receive defender's goalie + ball positions
+          if (mpAttacker === myPlayerNum) {
+            remoteGoalie.x = data.gx;
+            remoteGoalie.isDiving = data.gd;
+            remoteGoalie.diveDir = data.gdd;
+            remoteGoalie.diveTimer = data.gdt;
+            remoteGoalie.walkCycle = data.gwc;
+            remoteGoalie.isMoving = data.gm;
+            if (data.ba) {
+              remoteBall.x = data.bx;
+              remoteBall.y = data.by;
+              remoteBall.active = true;
+            } else {
+              remoteBall.active = false;
+            }
+          }
+          break;
+        case 'result':
+          // Defender sent result
+          mpScores = data.scores;
+          ball.active = false;
+          remoteBall.active = false;
+          if (data.wasKamehameha && data.resultType === 'goal') {
+            createParticleBurst(400, CONFIG.GOAL.Y, CONFIG.PARTICLES.GOAL_COLOR);
+            kamehameha.explosionResultType = 'goal';
+            startKamehamehaExplosion(400, CONFIG.GOAL.Y);
+          } else if (data.wasKamehameha) {
+            createParticleBurst(400, CONFIG.GOAL.Y, CONFIG.PARTICLES.WIDE_COLOR);
+            kamehameha.explosionResultType = 'wide';
+            startKamehamehaExplosion(400, CONFIG.GOAL.Y);
+          } else {
+            if (data.resultType === 'goal') {
+              createParticleBurst(data.bx || 400, data.by || CONFIG.GOAL.Y, CONFIG.PARTICLES.GOAL_COLOR);
+            } else if (data.resultType === 'save') {
+              createParticleBurst(data.bx || 400, data.by || CONFIG.GOAL.Y, CONFIG.PARTICLES.SAVE_COLOR);
+            } else {
+              createParticleBurst(data.bx || 400, data.by || CONFIG.GOAL.Y, CONFIG.PARTICLES.WIDE_COLOR);
+            }
+            mpResultMessage = data.resultType === 'goal'
+              ? (mpAttacker === myPlayerNum ? 'GOAL! You scored!' : 'GOAL! Opponent scored!')
+              : data.resultType === 'save' ? 'SAVE!' : 'WIDE!';
+            mpResultTimer = 90;
+            state = data.resultType === 'goal' ? GameState.MP_GOAL : GameState.MP_SAVE;
+          }
+          break;
+        case 'explosion_done':
+          // Kamehameha explosion finished on the other client
+          mpResultMessage = data.resultType === 'goal'
+            ? (mpAttacker === myPlayerNum ? 'GOAL! You scored!' : 'GOAL! Opponent scored!')
+            : 'WIDE!';
+          mpResultTimer = 90;
+          state = data.resultType === 'goal' ? GameState.MP_GOAL : GameState.MP_SAVE;
+          break;
+      }
+    }
+
+    function startSinglePlayer() {
+      gameMode = 'single';
+      state = GameState.START;
+    }
+
+    function startMultiplayerWait() {
+      gameMode = 'multi';
+      mpWaitDots = 0;
+      mpWaitTimer = 0;
+      mpConnStatus = 'Connecting...';
+      state = GameState.WAITING_FOR_MATCH;
+      connectToServer();
+    }
+
+    function startMultiplayerGame() {
+      gameMode = 'multi';
+      mpScores = [0, 0];
+      mpAttacker = 1;
+      mpRoundCount = 0;
+      ball.active = false;
+      ball.trail = [];
+      remoteBall.active = false;
+      particles.length = 0;
+      flashTimer = 0;
+      kamehameha.active = false;
+      kamehameha.phase = 'none';
+      kamehameha.shakeTimer = 0;
+      kamehameha.shakeIntensity = 0;
+      kamehameha.whiteFlashAlpha = 0;
+      kamehameha.explosionActive = false;
+
+      // Host (P1) generates and sends first round info
+      if (myPlayerNum === 1) {
+        mpGenerateAndSendRound();
+      }
+      // Guest (P2) waits for round_info message
+    }
+
+    function mpGenerateAndSendRound() {
+      mpRoundCount++;
+      const roll = Math.random();
+      let shotType;
+      if (roll < 0.01) shotType = 'kamehameha';
+      else if (roll < 0.11) shotType = 'ultra_fast';
+      else if (roll < 0.21) shotType = 'zigzag';
+      else shotType = 'normal';
+      const target = getTargetX();
+
+      mpShotType = shotType;
+      mpShotTarget = target;
+
+      sendToOpponent({
+        action: 'round_info',
+        attacker: mpAttacker,
+        shotType: shotType,
+        shotTarget: target,
+        roundCount: mpRoundCount,
+      });
+
+      mpApplyRound();
+    }
+
+    function mpApplyRound() {
+      goalie.x = CONFIG.CANVAS.WIDTH / 2;
+      goalie.y = CONFIG.GOAL.Y;
+      goalie.walkCycle = 0;
+      goalie.isMoving = false;
+      goalie.isDiving = false;
+      goalie.diveDir = 0;
+      goalie.diveTimer = 0;
+      kicker.x = CONFIG.CANVAS.WIDTH / 2;
+      kicker.y = 120;
+      kicker.phase = 'winding_up';
+      kicker.windUpTimer = CONFIG.KICKER.WIND_UP_TIME;
+      kicker.walkCycle = 0;
+      kicker.isMoving = false;
+      kicker.kickTimer = 0;
+      ball.active = false;
+      ball.trail = [];
+      remoteBall.active = false;
+      kicker.shotType = mpShotType;
+      state = GameState.MP_ROUND_START;
+    }
+
+    function amIDefender() {
+      return mpAttacker !== myPlayerNum;
+    }
+
+    function mpFireShot() {
+      if (ball.active) return;
+      if (amIDefender()) return; // Only attacker can kick
+
+      if (mpShotType === 'kamehameha') {
+        kicker.shotType = 'kamehameha';
+        kamehameha.savedTargetX = mpShotTarget;
+        sendToOpponent({ action: 'kamehameha_start', savedTargetX: mpShotTarget });
+        startKamehameha();
+        return;
+      }
+
+      kicker.shotType = mpShotType;
+      const targetX = mpShotTarget;
+      const targetY = CONFIG.GOAL.Y;
+      const dx = targetX - kicker.x;
+      const dy = targetY - kicker.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      let speed = CONFIG.BALL.MIN_SPEED + Math.random() * (CONFIG.BALL.MAX_SPEED - CONFIG.BALL.MIN_SPEED);
+      if (mpShotType === 'ultra_fast') speed *= CONFIG.BALL.ULTRA_FAST_MULTIPLIER;
+
+      const ballVx = (dx / dist) * speed;
+      const ballVy = (dy / dist) * speed;
+
+      // Send kick to opponent (defender)
+      sendToOpponent({
+        action: 'kick',
+        ballVx: ballVx,
+        ballVy: ballVy,
+        startX: kicker.x,
+        startY: kicker.y,
+      });
+
+      // Attacker doesn't simulate ball locally - waits for game_update from defender
+      kicker.kickTimer = kicker.kickDuration;
+      state = GameState.MP_PLAYING;
+    }
+
+    function mpOnSave() {
+      // Only defender processes results
+      if (!amIDefender()) return;
+      createParticleBurst(ball.x, ball.y, CONFIG.PARTICLES.SAVE_COLOR);
+      mpResultMessage = 'SAVE!';
+      mpResultTimer = 90;
+      sendToOpponent({
+        action: 'result',
+        resultType: 'save',
+        scores: mpScores,
+        bx: ball.x, by: ball.y,
+        wasKamehameha: false,
+      });
+      state = GameState.MP_SAVE;
+    }
+
+    function mpOnGoalScored(wasKamehameha) {
+      if (!amIDefender()) return;
+      mpScores[mpAttacker - 1]++;
+      createParticleBurst(ball.x, ball.y, CONFIG.PARTICLES.GOAL_COLOR);
+      if (wasKamehameha) {
+        sendToOpponent({
+          action: 'result',
+          resultType: 'goal',
+          scores: mpScores,
+          bx: ball.x, by: ball.y,
+          wasKamehameha: true,
+        });
+        kamehameha.explosionResultType = 'goal';
+        startKamehamehaExplosion(ball.x, ball.y);
+        return;
+      }
+      mpResultMessage = mpAttacker === myPlayerNum ? 'GOAL! You scored!' : 'GOAL! Opponent scored!';
+      mpResultTimer = 90;
+      sendToOpponent({
+        action: 'result',
+        resultType: 'goal',
+        scores: mpScores,
+        bx: ball.x, by: ball.y,
+        wasKamehameha: false,
+      });
+      state = GameState.MP_GOAL;
+    }
+
+    function mpOnBallWide(wasKamehameha) {
+      if (!amIDefender()) return;
+      createParticleBurst(ball.x, ball.y, CONFIG.PARTICLES.WIDE_COLOR);
+      if (wasKamehameha) {
+        sendToOpponent({
+          action: 'result',
+          resultType: 'wide',
+          scores: mpScores,
+          bx: ball.x, by: ball.y,
+          wasKamehameha: true,
+        });
+        kamehameha.explosionResultType = 'wide';
+        startKamehamehaExplosion(ball.x, ball.y);
+        return;
+      }
+      mpResultMessage = 'WIDE!';
+      mpResultTimer = 60;
+      sendToOpponent({
+        action: 'result',
+        resultType: 'wide',
+        scores: mpScores,
+        bx: ball.x, by: ball.y,
+        wasKamehameha: false,
+      });
+      state = GameState.MP_SAVE;
+    }
+
+    function mpEndRound() {
+      if (mpScores[0] >= mpWinTarget || mpScores[1] >= mpWinTarget) {
+        state = GameState.MP_GAME_OVER;
+        return;
+      }
+      mpAttacker = mpAttacker === 1 ? 2 : 1;
+      if (myPlayerNum === 1) {
+        // Host generates next round
+        mpGenerateAndSendRound();
+      }
+      // Guest waits for round_info
+    }
+
+    function mpSendGameUpdate() {
+      // Defender sends goalie + ball position to attacker
+      if (!amIDefender()) return;
+      mpUpdateCounter++;
+      if (mpUpdateCounter % 3 !== 0) return; // ~20fps
+      sendToOpponent({
+        action: 'game_update',
+        gx: goalie.x, gd: goalie.isDiving, gdd: goalie.diveDir,
+        gdt: goalie.diveTimer, gwc: goalie.walkCycle, gm: goalie.isMoving,
+        bx: ball.x, by: ball.y, ba: ball.active,
+      });
+    }
+
+    // --- Multiplayer Render Functions ---
+    function renderMainMenu(ctx) {
+      renderPitch(ctx);
+      renderGoal(ctx);
+      ctx.fillStyle = 'rgba(0,0,0,0.80)';
+      ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 48px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('CAT GOALIE', 400, 120);
+      ctx.font = '60px Arial';
+      ctx.fillText('\uD83D\uDC31\u26BD', 400, 200);
+
+      menuButtons = [];
+      const btnW = 280, btnH = 60;
+      const btn1Y = 300, btn2Y = 400;
+
+      // Single Player button
+      const b1x = 400 - btnW / 2;
+      menuButtons.push({ x: b1x, y: btn1Y, w: btnW, h: btnH });
+      ctx.fillStyle = menuHoverButton === 0 ? '#2563eb' : '#1e40af';
+      roundRect(ctx, b1x, btn1Y, btnW, btnH, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 2;
+      roundRect(ctx, b1x, btn1Y, btnW, btnH, 12);
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 24px Arial';
+      ctx.fillText('Single Player', 400, btn1Y + btnH / 2 - 6);
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#93c5fd';
+      ctx.fillText('Press 1', 400, btn1Y + btnH / 2 + 16);
+
+      // Multiplayer button
+      const b2x = 400 - btnW / 2;
+      menuButtons.push({ x: b2x, y: btn2Y, w: btnW, h: btnH });
+      ctx.fillStyle = menuHoverButton === 1 ? '#059669' : '#065f46';
+      roundRect(ctx, b2x, btn2Y, btnW, btnH, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 2;
+      roundRect(ctx, b2x, btn2Y, btnW, btnH, 12);
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 24px Arial';
+      ctx.fillText('Multiplayer', 400, btn2Y + btnH / 2 - 6);
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#6ee7b7';
+      ctx.fillText('Press 2', 400, btn2Y + btnH / 2 + 16);
+
+      ctx.fillStyle = '#666';
+      ctx.font = '14px Arial';
+      ctx.fillText('Online: play against another player', 400, 530);
+    }
+
+    function renderWaitingScreen(ctx) {
+      renderPitch(ctx);
+      renderGoal(ctx);
+      ctx.fillStyle = 'rgba(0,0,0,0.80)';
+      ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 36px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const dots = '.'.repeat(mpWaitDots);
+      ctx.fillText('Waiting for match' + dots, 400, 230);
+
+      ctx.font = '18px Arial';
+      ctx.fillStyle = '#aaaaaa';
+      ctx.fillText(mpConnStatus, 400, 290);
+
+      if (myPlayerNum > 0) {
+        ctx.fillStyle = '#22c55e';
+        ctx.font = 'bold 20px Arial';
+        ctx.fillText('Match found! Starting game...', 400, 340);
+      }
+
+      ctx.fillStyle = '#666';
+      ctx.font = '14px Arial';
+      ctx.fillText('Press ESC to go back', 400, 460);
+    }
+
+    function renderMPPlaying(ctx) {
+      renderPitch(ctx);
+      renderGoal(ctx);
+      // Kicker
+      renderSiameseCat(ctx, kicker.x, kicker.y,
+        kicker.walkCycle, kicker.isMoving,
+        kicker.kickTimer, kicker.kickDuration,
+        kicker.phase === 'winding_up' ? 1 - (kicker.windUpTimer / CONFIG.KICKER.WIND_UP_TIME) : 0);
+
+      if (amIDefender()) {
+        // I'm defending - render local ball and goalie
+        renderBall(ctx);
+        renderGoalie(ctx);
+      } else {
+        // I'm attacking - render remote goalie and ball from network
+        renderCalicoCat(ctx, remoteGoalie.x, CONFIG.GOAL.Y,
+          remoteGoalie.walkCycle, remoteGoalie.isDiving,
+          remoteGoalie.diveDir, remoteGoalie.diveTimer);
+        // Remote ball
+        if (remoteBall.active) {
+          ctx.fillStyle = 'rgba(0,0,0,0.15)';
+          ctx.beginPath();
+          ctx.ellipse(remoteBall.x + 2, remoteBall.y + 2, ball.radius, ball.radius * 0.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = CONFIG.BALL.COLOR;
+          ctx.beginPath();
+          ctx.arc(remoteBall.x, remoteBall.y, ball.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = CONFIG.BALL.OUTLINE_COLOR;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          if (mpShotType === 'kamehameha') {
+            const glowGrad = ctx.createRadialGradient(remoteBall.x, remoteBall.y, 0, remoteBall.x, remoteBall.y, ball.radius * 4);
+            glowGrad.addColorStop(0, 'rgba(100, 200, 255, 0.6)');
+            glowGrad.addColorStop(1, 'rgba(30, 100, 255, 0)');
+            ctx.fillStyle = glowGrad;
+            ctx.beginPath();
+            ctx.arc(remoteBall.x, remoteBall.y, ball.radius * 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      renderParticles(ctx);
+      renderMPHUD(ctx);
+      renderKamehamehaExplosion(ctx);
+      if (kamehameha.whiteFlashAlpha > 0) {
+        ctx.fillStyle = 'rgba(255, 255, 255, ' + kamehameha.whiteFlashAlpha + ')';
+        ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+      }
+    }
+
+    function renderMPHUD(ctx) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, 40);
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 18px Arial';
+
+      // My score (left side)
+      const myIdx = myPlayerNum - 1;
+      const oppIdx = myPlayerNum === 1 ? 1 : 0;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = mpAttacker === myPlayerNum ? '#fbbf24' : '#ffffff';
+      ctx.fillText('You: ' + mpScores[myIdx], 20, 20);
+
+      // Goal indicators - me
+      for (let i = 0; i < mpWinTarget; i++) {
+        ctx.fillStyle = i < mpScores[myIdx] ? '#22c55e' : '#444';
+        ctx.beginPath();
+        ctx.arc(130 + i * 18, 20, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Center text
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#888';
+      ctx.font = '14px Arial';
+      ctx.fillText('First to ' + mpWinTarget, 400, 20);
+
+      // Opponent score (right side)
+      ctx.textAlign = 'right';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillStyle = mpAttacker !== myPlayerNum ? '#fbbf24' : '#ffffff';
+      ctx.fillText('Opponent: ' + mpScores[oppIdx], 780, 20);
+
+      // Goal indicators - opponent
+      for (let i = 0; i < mpWinTarget; i++) {
+        ctx.fillStyle = i < mpScores[oppIdx] ? '#22c55e' : '#444';
+        ctx.beginPath();
+        ctx.arc(580 + i * 18, 20, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function renderMPRoundStart(ctx) {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fillRect(0, 50, CONFIG.CANVAS.WIDTH, 220);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const isMyKick = mpAttacker === myPlayerNum;
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 22px Arial';
+      ctx.fillText(isMyKick ? 'Kick into opponent\'s goal!' : 'Defend your goal!', 400, 80);
+
+      ctx.fillStyle = '#aaa';
+      ctx.font = '16px Arial';
+      ctx.fillText(isMyKick ? 'Your opponent will try to save it' : 'Move with Arrow keys / WASD, dive with Shift', 400, 110);
+
+      let shotLabel, shotColor;
+      if (mpShotType === 'normal') { shotLabel = 'NORMAL SHOT'; shotColor = '#fbbf24'; }
+      else if (mpShotType === 'ultra_fast') { shotLabel = 'ULTRA FAST!'; shotColor = '#22c55e'; }
+      else if (mpShotType === 'zigzag') { shotLabel = 'ZIGZAG!'; shotColor = '#a855f7'; }
+      else { shotLabel = 'KAMEHAMEHA!!!'; shotColor = '#3b82f6'; }
+
+      ctx.fillStyle = shotColor;
+      ctx.font = 'bold 32px Arial';
+      ctx.fillText(shotLabel, 400, 170);
+
+      if (isMyKick) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px Arial';
+        const pulse = 0.7 + Math.sin(Date.now() / 300) * 0.3;
+        ctx.globalAlpha = pulse;
+        ctx.fillText('Press E to kick!', 400, 220);
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 20px Arial';
+        const pulse = 0.7 + Math.sin(Date.now() / 400) * 0.3;
+        ctx.globalAlpha = pulse;
+        ctx.fillText('Get ready to save!', 400, 220);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function renderMPResultFlash(ctx) {
+      const alpha = Math.min(1, mpResultTimer / 20);
+      const scale = 1 + (90 - Math.min(mpResultTimer, 90)) * 0.005;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = state === GameState.MP_GOAL ? '#ef4444' : '#22c55e';
+      ctx.font = 'bold ' + Math.floor(48 * scale) + 'px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 8;
+      ctx.fillText(mpResultMessage, 400, 280);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    function renderMPGameOver(ctx) {
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const winner = mpScores[0] >= mpWinTarget ? 1 : 2;
+      const iWon = winner === myPlayerNum;
+      ctx.fillStyle = iWon ? '#22c55e' : '#ef4444';
+      ctx.font = 'bold 52px Arial';
+      ctx.fillText(iWon ? 'You Win!' : 'You Lose!', 400, 180);
+      ctx.font = '60px Arial';
+      ctx.fillText(iWon ? '\uD83C\uDFC6' : '\uD83D\uDE3F', 400, 260);
+
+      const myI = myPlayerNum - 1;
+      const oppI = myPlayerNum === 1 ? 1 : 0;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '28px Arial';
+      ctx.fillText('You ' + mpScores[myI] + '  -  ' + mpScores[oppI] + ' Opponent', 400, 340);
+      ctx.font = '18px Arial';
+      ctx.fillStyle = '#aaa';
+      ctx.fillText(mpRoundCount + ' rounds played', 400, 380);
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 22px Arial';
+      const pulse = 0.7 + Math.sin(Date.now() / 400) * 0.3;
+      ctx.globalAlpha = pulse;
+      ctx.fillText('Press SPACE or ENTER for Main Menu', 400, 470);
+      ctx.globalAlpha = 1;
+    }
+
+    // ============================================================
+    // MAIN LOOP
+    // ============================================================
+    function update(dt) {
+      dt = Math.min(dt, 3);
+      animTime += dt;
+
+      switch (state) {
+        case GameState.PLAYING:
+          updateGoalie(dt);
+          updateKicker(dt);
+          updateBall(dt);
+          updateParticles(dt);
+          updateKamehamehaAfterEffects(dt);
+          updateKamehamehaExplosion(dt);
+          break;
+        case GameState.KAMEHAMEHA:
+          updateKamehameha(dt);
+          updateBall(dt);
+          updateParticles(dt);
+          break;
+        case GameState.GOAL_SCORED:
+        case GameState.SAVE_MADE:
+          updateFlash(dt);
+          updateParticles(dt);
+          updateKamehamehaExplosion(dt);
+          break;
+        case GameState.GAME_OVER:
+          updateParticles(dt);
+          break;
+        // Multiplayer states
+        case GameState.MAIN_MENU:
+          break;
+        case GameState.WAITING_FOR_MATCH:
+          mpWaitTimer += dt;
+          if (mpWaitTimer > 30) { mpWaitTimer = 0; mpWaitDots = (mpWaitDots + 1) % 4; }
+          break;
+        case GameState.MP_ROUND_START:
+          if (amIDefender()) updateGoalie(dt);
+          kicker.windUpTimer -= 16.67 * dt;
+          if (kicker.windUpTimer < 0) kicker.windUpTimer = 0;
+          break;
+        case GameState.MP_PLAYING:
+          if (amIDefender()) {
+            updateGoalie(dt);
+            updateBall(dt);
+            mpSendGameUpdate();
+          }
+          updateParticles(dt);
+          updateKamehamehaAfterEffects(dt);
+          updateKamehamehaExplosion(dt);
+          break;
+        case GameState.MP_KAMEHAMEHA:
+          updateKamehameha(dt);
+          updateBall(dt);
+          updateParticles(dt);
+          break;
+        case GameState.MP_GOAL:
+        case GameState.MP_SAVE:
+          mpResultTimer -= dt;
+          updateParticles(dt);
+          updateKamehamehaExplosion(dt);
+          if (mpResultTimer <= 0) mpEndRound();
+          break;
+        case GameState.MP_GAME_OVER:
+          updateParticles(dt);
+          break;
+      }
+    }
+
+    function render() {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+
+      // Screen shake
+      let shakeX = 0, shakeY = 0;
+      if (kamehameha.shakeIntensity > 0.1 && (kamehameha.active || kamehameha.shakeTimer > 0 || kamehameha.explosionActive)) {
+        shakeX = (Math.random() - 0.5) * kamehameha.shakeIntensity * 2;
+        shakeY = (Math.random() - 0.5) * kamehameha.shakeIntensity * 2;
+      }
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+
+      switch (state) {
+        case GameState.START:
+          renderStartScreen(ctx);
+          break;
+        case GameState.KAMEHAMEHA:
+          renderKamehamehaCutscene(ctx);
+          break;
+        case GameState.PLAYING:
+        case GameState.GOAL_SCORED:
+        case GameState.SAVE_MADE:
+          renderPitch(ctx);
+          renderGoal(ctx);
+          renderKicker(ctx);
+          renderBall(ctx);
+          renderGoalie(ctx);
+          renderParticles(ctx);
+          renderHUD(ctx);
+          renderFlashMessage(ctx);
+          renderKamehamehaExplosion(ctx);
+          // Post-kamehameha flash overlay
+          if (kamehameha.whiteFlashAlpha > 0) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${kamehameha.whiteFlashAlpha})`;
+            ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, CONFIG.CANVAS.HEIGHT);
+          }
+          break;
+        case GameState.GAME_OVER:
+          renderPitch(ctx);
+          renderGoal(ctx);
+          renderGoalie(ctx);
+          renderParticles(ctx);
+          renderGameOverScreen(ctx);
+          break;
+        // Multiplayer states
+        case GameState.MAIN_MENU:
+          renderMainMenu(ctx);
+          break;
+        case GameState.WAITING_FOR_MATCH:
+          renderWaitingScreen(ctx);
+          break;
+        case GameState.MP_ROUND_START:
+          renderMPPlaying(ctx);
+          renderMPRoundStart(ctx);
+          break;
+        case GameState.MP_PLAYING:
+          renderMPPlaying(ctx);
+          break;
+        case GameState.MP_KAMEHAMEHA:
+          renderKamehamehaCutscene(ctx);
+          break;
+        case GameState.MP_GOAL:
+        case GameState.MP_SAVE:
+          renderMPPlaying(ctx);
+          renderMPResultFlash(ctx);
+          break;
+        case GameState.MP_GAME_OVER:
+          renderMPPlaying(ctx);
+          renderMPGameOver(ctx);
+          break;
+      }
+
+      ctx.restore();
+    }
+
+    function gameLoop(currentTime) {
+      const deltaTime = (currentTime - lastTime) / 16.67;
+      lastTime = currentTime;
+      update(deltaTime);
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    const canvas = document.getElementById('gameCanvas');
+    canvas.width = CONFIG.CANVAS.WIDTH;
+    canvas.height = CONFIG.CANVAS.HEIGHT;
+
+    setupInput();
+    lastTime = performance.now();
+    requestAnimationFrame(gameLoop);
+
+    // Cheat bar
+    const cheatBar = document.getElementById('cheatBar');
+    cheatBar.addEventListener('keydown', (e) => {
+      e.stopPropagation(); // Don't trigger game controls
+      if (e.key === 'Enter') {
+        const cmd = cheatBar.value.trim().toLowerCase();
+        cheatBar.value = '';
+        cheatBar.blur();
+
+        if (cmd === 'one more heart') {
+          if (state === GameState.PLAYING || state === GameState.GOAL_SCORED || state === GameState.SAVE_MADE) {
+            if (goalsConceded > 0) goalsConceded--;
+          }
+        } else if (cmd === 'instant kamehameha') {
+          if (state === GameState.PLAYING && !ball.active) {
+            kicker.shotType = 'kamehameha';
+            startKamehameha();
+          }
+        } else if (cmd === 'instant one save') {
+          saves += 1;
+          streak += 1;
+          if (streak > bestStreak) bestStreak = streak;
+        } else if (cmd === 'instant 5 saves') {
+          saves += 5;
+          streak += 5;
+          if (streak > bestStreak) bestStreak = streak;
+        } else if (cmd === 'instant 10 saves') {
+          saves += 10;
+          streak += 10;
+          if (streak > bestStreak) bestStreak = streak;
+        } else if (cmd === 'full hearts') {
+          goalsConceded = 0;
+        }
+      }
+    });
+    cheatBar.addEventListener('keyup', (e) => e.stopPropagation());
+  </script>
+</body>
+</html>
