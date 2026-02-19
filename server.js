@@ -24,9 +24,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Serve goalie.html for local development
-  const htmlPath = path.join(__dirname, 'goalie.html');
-  if (fs.existsSync(htmlPath) && (req.url === '/' || req.url === '/index.html' || req.url === '/goalie.html')) {
+  // Serve index.html
+  const htmlPath = path.join(__dirname, 'index.html');
+  if (fs.existsSync(htmlPath) && (req.url === '/' || req.url === '/index.html')) {
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end(fs.readFileSync(htmlPath));
   } else {
