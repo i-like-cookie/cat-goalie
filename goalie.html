@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Goalie Challenge</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -18,6 +18,10 @@
       border: 2px solid #333;
       border-radius: 4px;
       box-shadow: 0 0 30px rgba(0,0,0,0.5);
+      width: 100%;
+      max-width: 800px;
+      height: auto;
+      touch-action: none;
     }
     #cheatBar {
       position: fixed;
@@ -35,6 +39,9 @@
     }
     #cheatBar::placeholder { color: #1a1a1a; }
     #cheatBar:focus { color: #888; border-top-color: #444; }
+    @media (max-width: 820px) {
+      #cheatBar { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -168,6 +175,9 @@
     let flashMessage = '';
 
     const keys = {};
+
+    let isTouchDevice = false;
+    const touch = { active: false, moveDir: 0, diving: 0 };
 
     let animTime = 0; // global animation clock
 
@@ -340,6 +350,115 @@
           }
         }
       });
+
+      // --- Touch support ---
+      function canvasCoords(t) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (t.clientX - rect.left) * (CONFIG.CANVAS.WIDTH / rect.width),
+          y: (t.clientY - rect.top) * (CONFIG.CANVAS.HEIGHT / rect.height),
+        };
+      }
+
+      canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isTouchDevice = true;
+        const t = e.touches[0];
+        const { x, y } = canvasCoords(t);
+
+        // Menu button taps
+        if (state === GameState.MAIN_MENU) {
+          for (let i = 0; i < menuButtons.length; i++) {
+            const b = menuButtons[i];
+            if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+              if (i === 0) startSinglePlayer();
+              if (i === 1) startMultiplayerWait();
+              return;
+            }
+          }
+          return;
+        }
+
+        // Tap-to-start / restart screens
+        if (state === GameState.START) { startGame(); return; }
+        if (state === GameState.GAME_OVER) { restartGame(); return; }
+        if (state === GameState.MP_GAME_OVER) {
+          if (ws) { ws.close(); ws = null; }
+          state = GameState.MAIN_MENU;
+          return;
+        }
+
+        // Waiting screen — tap bottom area to go back
+        if (state === GameState.WAITING_FOR_MATCH) {
+          if (y > CONFIG.CANVAS.HEIGHT * 0.7) {
+            if (ws) { ws.close(); ws = null; }
+            state = GameState.MAIN_MENU;
+          }
+          return;
+        }
+
+        // MP attacker tap to kick
+        if (state === GameState.MP_ROUND_START && mpAttacker === myPlayerNum) {
+          mpFireShot();
+          return;
+        }
+
+        // Gameplay movement — handle in touchmove-style logic
+        touch.active = true;
+        handleTouchMove(x, y);
+      }, { passive: false });
+
+      canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!touch.active) return;
+        const t = e.touches[0];
+        const { x, y } = canvasCoords(t);
+        handleTouchMove(x, y);
+      }, { passive: false });
+
+      function handleTouchMove(x, y) {
+        const w = CONFIG.CANVAS.WIDTH;
+        const h = CONFIG.CANVAS.HEIGHT;
+        const cornerSize = w * 0.25;
+        const bottomZone = h * 0.75;
+
+        // Check dive buttons first (bottom corners)
+        if (y > bottomZone && x < cornerSize) {
+          touch.moveDir = -1;
+          touch.diving = -1;
+          return;
+        }
+        if (y > bottomZone && x > w - cornerSize) {
+          touch.moveDir = 1;
+          touch.diving = 1;
+          return;
+        }
+
+        // Movement zones: left third = left, right third = right
+        touch.diving = 0;
+        if (x < w / 3) {
+          touch.moveDir = -1;
+        } else if (x > w * 2 / 3) {
+          touch.moveDir = 1;
+        } else {
+          touch.moveDir = 0;
+        }
+      }
+
+      canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (e.touches.length === 0) {
+          touch.active = false;
+          touch.moveDir = 0;
+          touch.diving = 0;
+        }
+      }, { passive: false });
+
+      canvas.addEventListener('touchcancel', (e) => {
+        touch.active = false;
+        touch.moveDir = 0;
+        touch.diving = 0;
+      });
     }
 
     // ============================================================
@@ -412,8 +531,9 @@
       let dx = 0;
       if (keys['arrowleft'] || keys['a']) dx -= 1;
       if (keys['arrowright'] || keys['d']) dx += 1;
+      if (touch.active) dx = touch.moveDir || dx;
 
-      const isDiving = keys['shift'] && dx !== 0;
+      const isDiving = (keys['shift'] && dx !== 0) || (touch.diving !== 0);
       const speed = isDiving ? CONFIG.GOALIE.DIVE_SPEED : CONFIG.GOALIE.SPEED;
       goalie.x += dx * speed * dt;
 
@@ -1828,6 +1948,102 @@
       ctx.globalAlpha = 1;
     }
 
+    function renderTouchControls(ctx) {
+      const w = CONFIG.CANVAS.WIDTH;
+      const h = CONFIG.CANVAS.HEIGHT;
+      const cornerW = w * 0.25;
+      const cornerH = h * 0.25;
+      const bottomY = h - cornerH;
+
+      ctx.save();
+
+      // --- Dive buttons (bottom corners) ---
+      const leftDiveActive = touch.diving === -1;
+      const rightDiveActive = touch.diving === 1;
+
+      // Left dive button
+      ctx.fillStyle = leftDiveActive ? 'rgba(59, 130, 246, 0.35)' : 'rgba(255, 255, 255, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(0, bottomY + 12);
+      ctx.lineTo(cornerW - 12, bottomY + 12);
+      ctx.quadraticCurveTo(cornerW, bottomY + 12, cornerW, bottomY + 24);
+      ctx.lineTo(cornerW, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fill();
+
+      // Left dive label + arrow
+      ctx.globalAlpha = leftDiveActive ? 0.9 : 0.4;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const lCx = cornerW / 2;
+      const lCy = bottomY + cornerH / 2;
+      // Arrow pointing left
+      ctx.beginPath();
+      ctx.moveTo(lCx + 8, lCy - 14);
+      ctx.lineTo(lCx - 8, lCy - 6);
+      ctx.lineTo(lCx + 8, lCy + 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      ctx.fillText('DIVE', lCx, lCy + 16);
+
+      // Right dive button
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = rightDiveActive ? 'rgba(59, 130, 246, 0.35)' : 'rgba(255, 255, 255, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(w, bottomY + 12);
+      ctx.lineTo(w - cornerW + 12, bottomY + 12);
+      ctx.quadraticCurveTo(w - cornerW, bottomY + 12, w - cornerW, bottomY + 24);
+      ctx.lineTo(w - cornerW, h);
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fill();
+
+      // Right dive label + arrow
+      ctx.globalAlpha = rightDiveActive ? 0.9 : 0.4;
+      ctx.fillStyle = '#ffffff';
+      const rCx = w - cornerW / 2;
+      const rCy = lCy;
+      ctx.beginPath();
+      ctx.moveTo(rCx - 8, rCy - 14);
+      ctx.lineTo(rCx + 8, rCy - 6);
+      ctx.lineTo(rCx - 8, rCy + 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.fillText('DIVE', rCx, rCy + 16);
+
+      // --- Directional chevrons on left/right edges ---
+      const chevronY = h * 0.55;
+      const movingLeft = touch.active && touch.moveDir === -1 && touch.diving === 0;
+      const movingRight = touch.active && touch.moveDir === 1 && touch.diving === 0;
+
+      // Left chevron
+      ctx.globalAlpha = movingLeft ? 0.6 : 0.2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(28, chevronY - 12);
+      ctx.lineTo(14, chevronY);
+      ctx.lineTo(28, chevronY + 12);
+      ctx.stroke();
+
+      // Right chevron
+      ctx.globalAlpha = movingRight ? 0.6 : 0.2;
+      ctx.beginPath();
+      ctx.moveTo(w - 28, chevronY - 12);
+      ctx.lineTo(w - 14, chevronY);
+      ctx.lineTo(w - 28, chevronY + 12);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     function renderHUD(ctx) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, CONFIG.CANVAS.WIDTH, 36);
@@ -1894,15 +2110,20 @@
 
       ctx.font = '18px Arial';
       ctx.fillStyle = '#cccccc';
-      ctx.fillText('Use LEFT/RIGHT arrows or A/D to move', 400, 320);
-      ctx.fillText('Hold SHIFT for a diving save', 400, 350);
+      if (isTouchDevice) {
+        ctx.fillText('Touch left/right side to move', 400, 320);
+        ctx.fillText('Touch bottom corners to dive', 400, 350);
+      } else {
+        ctx.fillText('Use LEFT/RIGHT arrows or A/D to move', 400, 320);
+        ctx.fillText('Hold SHIFT for a diving save', 400, 350);
+      }
       ctx.fillText('Block the shots! 3 goals and you\'re out.', 400, 390);
 
       ctx.fillStyle = '#fbbf24';
       ctx.font = 'bold 22px Arial';
       const pulse = 0.7 + Math.sin(Date.now() / 400) * 0.3;
       ctx.globalAlpha = pulse;
-      ctx.fillText('Press SPACE or ENTER to start', 400, 470);
+      ctx.fillText(isTouchDevice ? 'Tap to start' : 'Press SPACE or ENTER to start', 400, 470);
       ctx.globalAlpha = 1;
     }
 
@@ -1943,7 +2164,7 @@
       ctx.font = 'bold 22px Arial';
       const pulse = 0.7 + Math.sin(Date.now() / 400) * 0.3;
       ctx.globalAlpha = pulse;
-      ctx.fillText('Press SPACE or ENTER to play again', 400, 500);
+      ctx.fillText(isTouchDevice ? 'Tap to play again' : 'Press SPACE or ENTER to play again', 400, 500);
       ctx.globalAlpha = 1;
     }
 
@@ -2368,7 +2589,7 @@
       ctx.fillText('Single Player', 400, btn1Y + btnH / 2 - 6);
       ctx.font = '14px Arial';
       ctx.fillStyle = '#93c5fd';
-      ctx.fillText('Press 1', 400, btn1Y + btnH / 2 + 16);
+      if (!isTouchDevice) ctx.fillText('Press 1', 400, btn1Y + btnH / 2 + 16);
 
       // Multiplayer button
       const b2x = 400 - btnW / 2;
@@ -2385,7 +2606,7 @@
       ctx.fillText('Multiplayer', 400, btn2Y + btnH / 2 - 6);
       ctx.font = '14px Arial';
       ctx.fillStyle = '#6ee7b7';
-      ctx.fillText('Press 2', 400, btn2Y + btnH / 2 + 16);
+      if (!isTouchDevice) ctx.fillText('Press 2', 400, btn2Y + btnH / 2 + 16);
 
       ctx.fillStyle = '#666';
       ctx.font = '14px Arial';
@@ -2417,7 +2638,7 @@
 
       ctx.fillStyle = '#666';
       ctx.font = '14px Arial';
-      ctx.fillText('Press ESC to go back', 400, 460);
+      ctx.fillText(isTouchDevice ? 'Tap here to go back' : 'Press ESC to go back', 400, 460);
     }
 
     function renderMPPlaying(ctx) {
@@ -2465,6 +2686,7 @@
 
       renderParticles(ctx);
       renderMPHUD(ctx);
+      if (isTouchDevice) renderTouchControls(ctx);
       renderKamehamehaExplosion(ctx);
       if (kamehameha.whiteFlashAlpha > 0) {
         ctx.fillStyle = 'rgba(255, 255, 255, ' + kamehameha.whiteFlashAlpha + ')';
@@ -2528,7 +2750,8 @@
 
       ctx.fillStyle = '#aaa';
       ctx.font = '16px Arial';
-      ctx.fillText(isMyKick ? 'Your opponent will try to save it' : 'Move with Arrow keys / WASD, dive with Shift', 400, 110);
+      const defenderHint = isTouchDevice ? 'Touch sides to move, corners to dive' : 'Move with Arrow keys / WASD, dive with Shift';
+      ctx.fillText(isMyKick ? 'Your opponent will try to save it' : defenderHint, 400, 110);
 
       let shotLabel, shotColor;
       if (mpShotType === 'normal') { shotLabel = 'NORMAL SHOT'; shotColor = '#fbbf24'; }
@@ -2545,7 +2768,7 @@
         ctx.font = 'bold 24px Arial';
         const pulse = 0.7 + Math.sin(Date.now() / 300) * 0.3;
         ctx.globalAlpha = pulse;
-        ctx.fillText('Press E to kick!', 400, 220);
+        ctx.fillText(isTouchDevice ? 'Tap to kick!' : 'Press E to kick!', 400, 220);
         ctx.globalAlpha = 1;
       } else {
         ctx.fillStyle = '#fbbf24';
@@ -2600,7 +2823,7 @@
       ctx.font = 'bold 22px Arial';
       const pulse = 0.7 + Math.sin(Date.now() / 400) * 0.3;
       ctx.globalAlpha = pulse;
-      ctx.fillText('Press SPACE or ENTER for Main Menu', 400, 470);
+      ctx.fillText(isTouchDevice ? 'Tap for Main Menu' : 'Press SPACE or ENTER for Main Menu', 400, 470);
       ctx.globalAlpha = 1;
     }
 
@@ -2704,6 +2927,7 @@
           renderGoalie(ctx);
           renderParticles(ctx);
           renderHUD(ctx);
+          if (isTouchDevice) renderTouchControls(ctx);
           renderFlashMessage(ctx);
           renderKamehamehaExplosion(ctx);
           // Post-kamehameha flash overlay
