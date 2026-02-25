@@ -2222,7 +2222,7 @@
           mpConnStatus = 'Waiting for opponent...';
         } else if (msg.type === 'matched') {
           myPlayerNum = msg.playerNum;
-          mpConnStatus = 'Match found! You are Player ' + myPlayerNum;
+          mpConnStatus = 'Waiting for opponent...';
           startMultiplayerGame();
         } else if (msg.type === 'game') {
           handleGameMessage(msg.data);
@@ -2630,11 +2630,6 @@
       ctx.fillStyle = '#aaaaaa';
       ctx.fillText(mpConnStatus, 400, 290);
 
-      if (myPlayerNum > 0) {
-        ctx.fillStyle = '#22c55e';
-        ctx.font = 'bold 20px Arial';
-        ctx.fillText('Match found! Starting game...', 400, 340);
-      }
 
       ctx.fillStyle = '#666';
       ctx.font = '14px Arial';
