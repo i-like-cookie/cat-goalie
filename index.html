@@ -2058,14 +2058,21 @@
       ctx.textAlign = 'right';
       ctx.fillText(`Streak: ${streak}`, 785, 18);
 
-      // Hearts for remaining lives
-      ctx.textAlign = 'center';
-      ctx.font = '16px Arial';
+      // Hearts for remaining lives (drawn as paths so fillStyle works on mobile)
       const remaining = CONFIG.GAME.MAX_GOALS - goalsConceded;
-      const heartStartX = 400 - (CONFIG.GAME.MAX_GOALS * 10);
+      const heartStartX = 400 - (CONFIG.GAME.MAX_GOALS * 11);
       for (let i = 0; i < CONFIG.GAME.MAX_GOALS; i++) {
         ctx.fillStyle = i < remaining ? '#ef4444' : '#555555';
-        ctx.fillText('\u2764', heartStartX + i * 22, 18);
+        const hx = heartStartX + i * 22;
+        const hy = 18;
+        const s = 7;
+        ctx.beginPath();
+        ctx.moveTo(hx, hy - s * 0.4);
+        ctx.bezierCurveTo(hx, hy - s, hx - s, hy - s, hx - s, hy - s * 0.4);
+        ctx.bezierCurveTo(hx - s, hy + s * 0.2, hx, hy + s * 0.6, hx, hy + s);
+        ctx.bezierCurveTo(hx, hy + s * 0.6, hx + s, hy + s * 0.2, hx + s, hy - s * 0.4);
+        ctx.bezierCurveTo(hx + s, hy - s, hx, hy - s, hx, hy - s * 0.4);
+        ctx.fill();
       }
     }
 
