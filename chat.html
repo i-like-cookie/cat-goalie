@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mac & Cheese Chat</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #fdf6e3;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #f4a623, #e8891c);
+    color: white;
+    padding: 16px 20px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  .header h1 { font-size: 1.4rem; font-weight: 700; }
+  .header p { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+
+  .chat-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .message {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    line-height: 1.45;
+    font-size: 0.95rem;
+    animation: fadeIn 0.25s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .message.bot {
+    align-self: flex-start;
+    background: #fff;
+    color: #333;
+    border: 1px solid #f0d9a0;
+    border-bottom-left-radius: 4px;
+  }
+
+  .message.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #f4a623, #e8891c);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+
+  .message .name {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    opacity: 0.7;
+  }
+
+  .typing-indicator {
+    align-self: flex-start;
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid #f0d9a0;
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+    display: none;
+    gap: 4px;
+  }
+
+  .typing-indicator span {
+    width: 7px; height: 7px;
+    background: #cba84a;
+    border-radius: 50%;
+    display: inline-block;
+    animation: bounce 1.2s infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  .input-area {
+    padding: 12px 16px;
+    background: #fff;
+    border-top: 1px solid #f0d9a0;
+    display: flex;
+    gap: 10px;
+  }
+
+  .input-area input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 2px solid #f0d9a0;
+    border-radius: 24px;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .input-area input:focus { border-color: #f4a623; }
+
+  .input-area button {
+    background: linear-gradient(135deg, #f4a623, #e8891c);
+    color: white;
+    border: none;
+    border-radius: 24px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+
+  .input-area button:active { transform: scale(0.96); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Mac & Cheese Bot 🧀</h1>
+  <p>I only talk about one thing. You know what it is.</p>
+</div>
+
+<div class="chat-container" id="chat">
+  <div class="message bot">
+    <div class="name">Cheddar Bot</div>
+    Hey there! Let's talk mac and cheese. Ask me anything — recipes, cheeses, hot takes, whatever. Just keep it cheesy. 🧀
+  </div>
+</div>
+
+<div class="typing-indicator" id="typing">
+  <span></span><span></span><span></span>
+</div>
+
+<div class="input-area">
+  <input type="text" id="userInput" placeholder="Say something cheesy..." autocomplete="off">
+  <button id="sendBtn">Send</button>
+</div>
+
+<script>
+// ── The Knowledge Base ───────────────────────────────────
+// This is like the bot's "brain" — a dictionary of topics,
+// each with several possible replies so it doesn't repeat itself.
+
+const responses = {
+  // ── RECIPE sub-topics ──
+  recipe_classic: [
+    "Classic recipe: Cook elbow macaroni, make a roux with butter + flour, add milk, melt in sharp cheddar and a bit of gruyere. Season with mustard powder, paprika, salt & pepper. Bake with breadcrumbs on top at 375°F for 25 min.",
+    "The real deal: boil your pasta al dente, make a bechamel (butter, flour, milk), stir in a mountain of grated cheese, combine with pasta, and bake until bubbly and golden. That's the blueprint.",
+    "Old school mac: start with a roux, whisk in warm milk slowly so it doesn't clump, then add your cheese off the heat so it melts gently. Patience is the secret ingredient here.",
+  ],
+  recipe_stovetop: [
+    "Wanna go stovetop? Boil your pasta, drain it, toss it back in the pot with butter, a splash of milk, and a mountain of shredded cheese. Stir til it's gooey. Done in 15 min.",
+    "Fastest mac ever: cook pasta, save a cup of pasta water before draining, then stir in cheese and butter. The starchy water helps everything come together into a silky sauce.",
+    "Stovetop pro move: low heat is key. If you crank it up the cheese gets grainy. Keep it gentle, stir constantly, and you'll get that smooth, glossy sauce every time.",
+  ],
+  recipe_creamy: [
+    "Secret weapon recipe: add a spoonful of cream cheese and a handful of American cheese to your sauce. It makes it impossibly creamy. Trust.",
+    "Want next-level creamy? Evaporated milk instead of regular milk. It's thicker and richer, so your sauce comes out velvety without needing a ton of extra butter.",
+    "The creamiest mac I've ever made used a combo of cream cheese, a splash of heavy cream, and white cheddar. It was basically cheese soup with noodles in it. No regrets.",
+  ],
+  recipe_onepot: [
+    "One-pot mac: boil pasta in a mix of milk and water, then stir in cheese once the pasta's done. The starchy milk becomes the sauce automatically. Minimal dishes!",
+    "Lazy genius method: throw dry pasta, milk, water, butter, and salt in one pot. Cook it all together, stirring a lot. Once the pasta's done, stir in cheese. One pot, one dream.",
+    "The best part of one-pot mac is the cleanup. One pot, one spoon, one bowl. That's it. And it still tastes amazing because the pasta starch makes the sauce thick and clingy.",
+  ],
+  recipe_general: [
+    "Classic recipe: Cook elbow macaroni, make a roux with butter + flour, add milk, melt in sharp cheddar and a bit of gruyere. Season with mustard powder, paprika, salt & pepper. Bake with breadcrumbs on top at 375°F for 25 min.",
+    "Wanna go stovetop? Boil your pasta, drain it, toss it back in the pot with butter, a splash of milk, and a mountain of shredded cheese. Stir til it's gooey. Done in 15 min.",
+    "Secret weapon recipe: add a spoonful of cream cheese and a handful of American cheese to your sauce. It makes it impossibly creamy. Trust.",
+    "One-pot mac: boil pasta in a mix of milk and water, then stir in cheese once the pasta's done. The starchy milk becomes the sauce automatically. Minimal dishes!",
+    "Here's one most people don't try: sodium citrate mac. Dissolve a tiny bit of sodium citrate in water, melt ANY cheese into it, and you get a perfectly smooth sauce from any cheese. It's food science magic.",
+    "My go-to weeknight recipe: boil pasta, drain, add butter and a big handful of pre-shredded cheese right in the hot pot. Stir fast. Add a splash of milk if it's too thick. Dinner in 12 minutes flat.",
+  ],
+
+  // ── CHEESE sub-topics ──
+  cheese_cheddar: [
+    "For mac and cheese, sharp cheddar is the GOAT. But mixing it with gruyere or fontina takes it to another level — flavor AND melt.",
+    "Sharp vs mild cheddar: sharp gives you that tangy bite, but mild melts smoother. My move? Use sharp for flavor and throw in a little mild or jack for melt insurance.",
+    "Aged cheddar is incredible in mac, but it can get crumbly. The older the cheddar, the less it melts smoothly. Balance it with a younger, melty cheese and you're set.",
+  ],
+  cheese_american: [
+    "Hot take: American cheese gets too much hate. It melts like a dream and makes the creamiest mac. Mix it with cheddar for the best of both worlds.",
+    "There's a reason every diner uses American cheese — it's engineered to melt. A few slices in your mac sauce makes it impossibly smooth. Science wins again.",
+    "The secret behind American cheese: it contains emulsifiers that keep the fat and protein from separating. That's why it melts so perfectly. It's not lazy, it's smart.",
+  ],
+  cheese_gouda: [
+    "Gouda in mac and cheese is a game changer — especially smoked gouda. It adds this deep, almost nutty flavor. Mix it with monterey jack and you're golden.",
+    "Smoked gouda mac is one of those things that makes people go 'wait, what's in this?' at potlucks. It's got that subtle smokiness that elevates everything.",
+    "Young gouda melts beautifully and is milder. Aged gouda has more intense flavor but is crumblier. For mac, I'd go young gouda for the base and a little aged for depth.",
+  ],
+  cheese_velveeta: [
+    "Velveeta is processed, sure, but it makes an incredibly smooth sauce. No shame in the Velveeta game.",
+    "Fun fact: Velveeta was invented in 1918 by a Swiss immigrant who figured out how to use leftover cheese scraps. It was literally born to be melted.",
+    "If you mix half Velveeta and half real sharp cheddar, you get the best of both worlds: that silky smooth texture with actual cheese flavor. A lot of competition BBQ teams do this.",
+  ],
+  cheese_general: [
+    "For mac and cheese, sharp cheddar is the GOAT. But mixing it with gruyere or fontina takes it to another level — flavor AND melt.",
+    "Hot take: American cheese gets too much hate. It melts like a dream and makes the creamiest mac. Mix it with cheddar for the best of both worlds.",
+    "Gouda in mac and cheese is a game changer — especially smoked gouda. It adds this deep, almost nutty flavor. Mix it with monterey jack and you're golden.",
+    "Velveeta is processed, sure, but it makes an incredibly smooth sauce. No shame in the Velveeta game.",
+    "The golden rule of mac cheese: always use at least two types. One for flavor (cheddar, gruyere) and one for melt (fontina, american, jack). Together they're unstoppable.",
+    "Havarti is super underrated in mac and cheese. It's buttery, melts like a dream, and plays well with basically any other cheese you pair it with.",
+    "Manchego in mac and cheese gives it this slightly nutty, almost buttery Spanish vibe. Mix it with some smoked paprika and you've got something really special.",
+  ],
+
+  // ── BAKED sub-topics ──
+  baked_breadcrumb: [
+    "Baked mac is where it's at if you want that crispy breadcrumb top. Mix panko with melted butter and parmesan, layer it on, then broil for 2 min at the end.",
+    "Crushed Ritz crackers instead of breadcrumbs. Trust me on this one. The buttery, salty crunch is out of this world. Mix with a little melted butter and go to town.",
+    "For the crunchiest topping: mix panko, melted butter, garlic powder, and a handful of grated parm. Spread it thick. Broil until it's deep golden. Don't walk away from the oven though — it goes from perfect to burned FAST.",
+  ],
+  baked_sauce: [
+    "Key to baked mac: make your cheese sauce a little thinner than you think, because the oven will thicken it up. Nobody wants dry mac.",
+    "If your baked mac keeps coming out dry, try adding an extra half cup of milk to the sauce before baking. The oven evaporates more liquid than you'd expect.",
+    "Another trick: cover with foil for the first 20 minutes of baking, then uncover for the last 10 to get the top crispy. Keeps the inside creamy while the top gets golden.",
+  ],
+  baked_resting: [
+    "Pro tip — let baked mac rest for 10 min after it comes out of the oven. The sauce sets up and each scoop holds together perfectly.",
+    "I know it's hard to wait, but resting baked mac is like resting a steak — it firms up and the flavors come together. 10 minutes makes a huge difference.",
+    "If you want those perfect Instagram-worthy squares of baked mac, you HAVE to let it cool. Otherwise it's a delicious but sloppy puddle. Worth the wait.",
+  ],
+  baked_general: [
+    "Baked mac is where it's at if you want that crispy breadcrumb top. Mix panko with melted butter and parmesan, layer it on, then broil for 2 min at the end.",
+    "Key to baked mac: make your cheese sauce a little thinner than you think, because the oven will thicken it up. Nobody wants dry mac.",
+    "Pro tip — let baked mac rest for 10 min after it comes out of the oven. The sauce sets up and each scoop holds together perfectly.",
+    "The ultimate baked mac move: make a creamy stovetop version first, pour it in a baking dish, top with breadcrumbs AND extra shredded cheese, then bake at 375°F until bubbly. Best of both worlds.",
+    "Cast iron baked mac and cheese is elite. The edges get crispy and caramelized while the middle stays creamy. If you have a cast iron skillet, you need to try this.",
+  ],
+
+  // ── KRAFT sub-topics ──
+  kraft_midnight: [
+    "Look, Kraft mac and cheese hits different at midnight. No shame. That neon orange powder has a special place in my heart.",
+    "There's something about Kraft at 1 AM that no fancy restaurant mac can replicate. Maybe it's the nostalgia. Maybe it's the hunger. Either way, it slaps.",
+    "Kraft mac and cheese is the ultimate comfort blanket in food form. Bad day? Kraft. Late night? Kraft. Don't feel like cooking? Kraft. It never lets you down.",
+  ],
+  kraft_canada: [
+    "Fun fact: Kraft Dinner is basically a national dish in Canada. They eat more of it per capita than anyone else. Respect.",
+    "Canadians call it KD and they are dead serious about it. They eat 55% more Kraft Dinner per capita than Americans. It's practically a constitutional right up there.",
+    "In Canada, Kraft Dinner outsells every other grocery item. It's been called an unofficial national food. During the pandemic, it was one of the first things to sell out. Canadians know what's important.",
+  ],
+  kraft_trick: [
+    "The trick with Kraft: use a little less milk and a bit more butter than the box says. Creamier every time.",
+    "Upgrade hack: make Kraft as usual, then stir in a slice of real cheese and a tiny squirt of mustard at the end. Turns a $1 box into something surprisingly legit.",
+    "Another Kraft trick: add a spoonful of sour cream after you mix in the powder. It makes it tangier and way creamier. Game changer for a 5-minute meal.",
+  ],
+  kraft_general: [
+    "Look, Kraft mac and cheese hits different at midnight. No shame. That neon orange powder has a special place in my heart.",
+    "Fun fact: Kraft Dinner is basically a national dish in Canada. They eat more of it per capita than anyone else. Respect.",
+    "The trick with Kraft: use a little less milk and a bit more butter than the box says. Creamier every time.",
+    "Kraft Shapes taste better than regular Kraft and I will die on this hill. The character shapes hold more cheese powder in their little crevices. It's geometry.",
+    "Annie's, Velveeta Shells, Kraft — they all have their place. But classic blue-box Kraft with the elbow noodles? That's the original. Respect the OG.",
+  ],
+
+  // ── VEGAN sub-topics ──
+  vegan_cashew: [
+    "Vegan mac has come SO far. Blend cashews, nutritional yeast, garlic, turmeric, and a little miso paste for an unreal dairy-free sauce.",
+    "Soak raw cashews for 2 hours (or boil for 15 min to speed it up), then blend with water, nutritional yeast, lemon juice, garlic, and salt. Pour over pasta. Seriously good.",
+    "Cashew cream is the secret weapon of vegan cooking. Blend soaked cashews until silky smooth and you've got a base that can mimic heavy cream in almost any recipe. Mac included.",
+  ],
+  vegan_nooch: [
+    "Nutritional yeast is the MVP of vegan mac. Savory, almost cheesy flavor naturally. People call it 'nooch' and it deserves the nickname.",
+    "Nutritional yeast is actually deactivated yeast that's grown on molasses. It's packed with B vitamins and has this naturally savory, cheesy flavor that makes it perfect for vegan mac sauces.",
+    "If you've never tried nooch, start by sprinkling it on popcorn. Once you get that cheesy flavor, you'll understand why vegan mac and cheese actually works.",
+  ],
+  vegan_sweetpotato: [
+    "Sweet potato mac and cheese — sounds weird, works beautifully. Roast a sweet potato, blend it with cashews, nutritional yeast, and spices. Naturally orange and delicious.",
+    "The beauty of sweet potato mac: it's naturally the color of cheese sauce, it's creamy when blended, and it adds a subtle sweetness that actually complements the savory nooch. Nature did the work for us.",
+    "Butternut squash works just as well as sweet potato for vegan mac. Roast it, blend it, season it. You get that gorgeous orange color and a velvety texture without any dairy.",
+  ],
+  vegan_general: [
+    "Vegan mac has come SO far. Blend cashews, nutritional yeast, garlic, turmeric, and a little miso paste for an unreal dairy-free sauce.",
+    "Nutritional yeast is the MVP of vegan mac. Savory, almost cheesy flavor naturally. People call it 'nooch' and it deserves the nickname.",
+    "Sweet potato mac and cheese — sounds weird, works beautifully. Roast a sweet potato, blend it with cashews, nutritional yeast, and spices. Naturally orange and delicious.",
+    "White bean mac is a sneaky vegan trick — blend cooked white beans with nutritional yeast and garlic for a high-protein, creamy sauce. Doesn't taste beany at all.",
+    "Vegan mac tip: a splash of apple cider vinegar in your sauce adds that tangy 'cheesy' sharpness that's hard to get without dairy. Just a little goes a long way.",
+  ],
+
+  // ── SPICY sub-topics ──
+  spicy_jalapeno: [
+    "Add diced jalapeños and a drizzle of sriracha to your mac. Or go nuclear with habanero cheddar. Spicy mac hits different on a cold day.",
+    "Pickled jalapeños are even better than fresh in mac and cheese — the vinegar adds a tangy kick along with the heat. Plus they're already sliced. Lazy AND delicious.",
+    "For a smoky heat, use chipotle peppers in adobo sauce. Chop up one or two and stir them into your mac. The smoky, spicy flavor is incredible.",
+  ],
+  spicy_buffalo: [
+    "Buffalo mac and cheese: mix Frank's Red Hot into your cheese sauce. Top with blue cheese crumbles. It's basically buffalo wings in pasta form.",
+    "Take buffalo mac up a notch: toss diced chicken in buffalo sauce, lay it on top of the mac, drizzle ranch, and add celery salt. Full buffalo wing experience in a bowl.",
+    "The key to buffalo mac: don't be shy with the hot sauce but balance it with extra butter in the cheese sauce. The fat mellows the heat into something addictive.",
+  ],
+  spicy_pepperjack: [
+    "Pepper jack cheese in mac and cheese is the easiest way to add heat. It melts great and has just the right kick.",
+    "Pepper jack is the gateway spicy cheese for mac. If you want more heat from there, move up to habanero jack. It exists and it's gloriously painful.",
+    "Mix pepper jack with regular cheddar at a 1:1 ratio for a mac that has a warm tingle without being overwhelming. Perfect for when you want spice but still need to taste the cheese.",
+  ],
+  spicy_general: [
+    "Add diced jalapeños and a drizzle of sriracha to your mac. Or go nuclear with habanero cheddar. Spicy mac hits different on a cold day.",
+    "Buffalo mac and cheese: mix Frank's Red Hot into your cheese sauce. Top with blue cheese crumbles. It's basically buffalo wings in pasta form.",
+    "Pepper jack cheese in mac and cheese is the easiest way to add heat. It melts great and has just the right kick.",
+    "Cajun mac and cheese: add andouille sausage, cayenne, and a dash of Cajun seasoning to your cheese sauce. It's like New Orleans in a bowl.",
+    "A pinch of cayenne pepper in any mac recipe adds warmth without changing the flavor profile. You won't taste 'hot sauce,' just a gentle heat in the background. Subtle but effective.",
+  ],
+
+  // ── HISTORY sub-topics ──
+  history_ancient: [
+    "Mac and cheese has been around since at least the 14th century — there's a recipe in a medieval Italian cookbook called 'Liber de Coquina.' It's literally ancient comfort food.",
+    "The 'Liber de Coquina' recipe called for sheet pasta cut into 2-inch squares, cooked and layered with grated cheese. Basically medieval lasagna-meets-mac. People have loved cheese on carbs forever.",
+  ],
+  history_jefferson: [
+    "Thomas Jefferson is often credited with popularizing mac and cheese in America. He had it served at a state dinner in 1802 after trying it in Europe.",
+    "Jefferson actually brought a pasta machine back from Italy and had macaroni imported to Monticello. The man was COMMITTED to his mac and cheese. Respect the dedication.",
+  ],
+  history_kraft: [
+    "Kraft introduced boxed mac in 1937 during the Great Depression. You could feed a family of 4 for 19 cents. Iconic.",
+    "When Kraft launched their boxed mac and cheese, they sold 8 million boxes in the first year alone. During the Depression, cheap and filling was exactly what people needed. The timing was perfect.",
+  ],
+  history_raffald: [
+    "The first modern mac and cheese recipe appeared in Elizabeth Raffald's 1770 cookbook 'The Experienced English Housekeeper.' She called it macaroni with Parmesan cheese and it was baked in a casserole — basically what we still do today.",
+    "Elizabeth Raffald's recipe used a bechamel sauce with Parmesan and was baked with breadcrumbs on top. Sound familiar? We've barely changed it in 250 years. If it ain't broke...",
+  ],
+  history_wwii: [
+    "During World War II, boxed mac and cheese sales doubled in the US because meat was rationed and families needed cheap protein from the cheese. The war basically made it a staple.",
+    "WWII rationing meant families got creative with meatless meals. Mac and cheese was cheap, filling, and used only one ration point. It went from convenient to essential overnight.",
+  ],
+  history_southern: [
+    "In the American South, mac and cheese became a signature dish at Black family gatherings and holidays, often baked with eggs and evaporated milk for an extra creamy, custard-like texture. It's a deeply important cultural tradition.",
+    "Southern baked mac is its own art form. Every family has their recipe and they don't play around with it. Eggs, evaporated milk, multiple cheeses, baked until golden — it's not a side dish, it's THE dish.",
+    "At Thanksgiving in many Southern households, the mac and cheese is more important than the turkey. I've seen family arguments about whose recipe is better. People are passionate about it.",
+  ],
+  history_hemings: [
+    "James Hemings, an enslaved chef who traveled to France with Thomas Jefferson, is believed to be the person who actually learned to make mac and cheese in Paris. Jefferson gets the credit, but Hemings did the cooking.",
+    "James Hemings trained in French cuisine in Paris and became the first American to be formally trained as a French chef. He brought back not just mac and cheese but an entire culinary tradition. His contribution to American food culture is huge.",
+  ],
+  history_word: [
+    "The word 'macaroni' used to mean any tube-shaped pasta, not a specific shape. So historically, 'macaroni and cheese' could have been made with all sorts of noodles.",
+    "In the 18th century, 'macaroni' was also British slang for someone who was fashionable and fancy — that's what 'Yankee Doodle called it macaroni' is about. The word had a whole life beyond pasta.",
+  ],
+  history_general: [
+    "Mac and cheese has been around since at least the 14th century — there's a recipe in a medieval Italian cookbook called 'Liber de Coquina.' It's literally ancient comfort food.",
+    "Thomas Jefferson is often credited with popularizing mac and cheese in America. He had it served at a state dinner in 1802 after trying it in Europe.",
+    "Kraft introduced boxed mac in 1937 during the Great Depression. You could feed a family of 4 for 19 cents. Iconic.",
+    "The first modern mac and cheese recipe appeared in Elizabeth Raffald's 1770 cookbook 'The Experienced English Housekeeper.' She called it macaroni with Parmesan cheese and it was baked in a casserole — basically what we still do today.",
+    "During World War II, boxed mac and cheese sales doubled in the US because meat was rationed and families needed cheap protein from the cheese. The war basically made it a staple.",
+    "In the American South, mac and cheese became a signature dish at Black family gatherings and holidays, often baked with eggs and evaporated milk for an extra creamy, custard-like texture. It's a deeply important cultural tradition.",
+    "James Hemings, an enslaved chef who traveled to France with Thomas Jefferson, is believed to be the person who actually learned to make mac and cheese in Paris. Jefferson gets the credit, but Hemings did the cooking.",
+    "The word 'macaroni' used to mean any tube-shaped pasta, not a specific shape. So historically, 'macaroni and cheese' could have been made with all sorts of noodles.",
+    "In the 1980s and 90s, mac and cheese went gourmet. Fancy restaurants started putting truffle mac on their menus and charging $25 for it. It went from kids' food to fine dining seemingly overnight.",
+    "Mac and cheese shows up in almost every culture in some form. The French have gratin de macaroni, the British have cauliflower cheese (close cousin), and the Greeks have pastitsio. Cheese + carbs is universal.",
+  ],
+
+  // ── PASTA sub-topics ──
+  pasta_shells: [
+    "Elbow macaroni is classic, but shells are actually better — they catch more cheese in their little pockets. Cavatappi is great too.",
+    "Medium shells are the ideal mac and cheese pasta in my opinion. Every single shell is a tiny bowl of cheese sauce. You get cheese IN and ON the pasta. Maximum cheese delivery.",
+    "If you're a shell person, try jumbo shells stuffed with mac and cheese filling, then baked with more cheese on top. It's mac and cheese inception.",
+  ],
+  pasta_ridged: [
+    "The pasta shape matters more than people think! Ridged pasta (rigatoni, cavatappi) holds onto sauce way better than smooth shapes.",
+    "Cavatappi (those corkscrew tubes) might be the perfect mac and cheese pasta. They're ridged, hollow, AND curly — triple the cheese-holding power.",
+    "Rigatoni mac and cheese is restaurant-level. Those big tubes fill up with cheese sauce and every bite is like a cheesy tunnel. Highly recommend.",
+  ],
+  pasta_any: [
+    "Hot take: you can make 'mac and cheese' with any pasta. Penne and cheese? Still delicious. Spaghetti and cheese? Chaotic but it works.",
+    "Orzo mac and cheese is underrated — the tiny rice-shaped pasta makes it almost risotto-like. Super creamy and a completely different texture experience.",
+    "I once made mac and cheese with rotini and honestly? The spirals held so much cheese it might've been better than elbows. Don't tell the purists.",
+  ],
+  pasta_general: [
+    "Elbow macaroni is classic, but shells are actually better — they catch more cheese in their little pockets. Cavatappi is great too.",
+    "The pasta shape matters more than people think! Ridged pasta (rigatoni, cavatappi) holds onto sauce way better than smooth shapes.",
+    "Hot take: you can make 'mac and cheese' with any pasta. Penne and cheese? Still delicious. Spaghetti and cheese? Chaotic but it works.",
+    "Always cook your mac pasta 1 minute short of al dente, especially if you're baking it. It'll finish cooking in the oven and won't get mushy.",
+    "Salt your pasta water like the ocean. Seriously. Unseasoned noodles make bland mac and cheese no matter how good your sauce is. The pasta itself needs flavor.",
+  ],
+
+  // ── ADD-IN sub-topics ──
+  addon_bacon: [
+    "Top tier add-ins: crispy bacon, caramelized onions, roasted broccoli, or truffle oil if you're feeling fancy.",
+    "Bacon in mac and cheese isn't just a topping — crumble it INTO the sauce so every bite has that smoky, salty crunch distributed throughout. Don't just put it on top.",
+    "Caramelized onions in mac and cheese add this incredible sweet-savory depth. They take 30 min to make but they turn regular mac into something people remember.",
+  ],
+  addon_lobster: [
+    "Lobster mac and cheese exists and it's as amazing as it sounds. Chunks of lobster tail in a rich gruyere sauce. Peak comfort food.",
+    "If lobster's too pricey, try crab mac and cheese. Lump crab meat folded into a sharp cheddar and gruyere sauce with a touch of Old Bay. It's coastal comfort food perfection.",
+    "The trick with lobster mac: don't overcook the lobster. Poach it gently, chop it, and fold it in at the very end so it stays tender. Rubbery lobster ruins the whole thing.",
+  ],
+  addon_bbq: [
+    "Try mixing pulled pork into your mac. Leftover BBQ + creamy mac = the ultimate comfort food mashup.",
+    "Brisket mac and cheese is a whole lifestyle. Chopped smoked brisket stirred into creamy mac with a drizzle of BBQ sauce on top. I could eat it every day.",
+    "Any leftover meat works in mac: rotisserie chicken, taco meat, even Thanksgiving turkey. Mac and cheese is basically the perfect vehicle for leftovers.",
+  ],
+  addon_breadcrumb: [
+    "Breadcrumbs on top are non-negotiable for me. Panko mixed with melted butter and a little garlic powder. Crunch is everything.",
+    "Try using crushed-up chips as a topping instead of breadcrumbs. Doritos, Lay's, Cheetos — sounds wild but the salty crunch is incredible. BBQ chips on mac is elite.",
+    "Everything bagel seasoning on top of mac and cheese before baking. The garlic, sesame, and poppy seeds create this amazing crunchy, savory crust. You'll never go back.",
+  ],
+  addon_general: [
+    "Top tier add-ins: crispy bacon, caramelized onions, roasted broccoli, or truffle oil if you're feeling fancy.",
+    "Lobster mac and cheese exists and it's as amazing as it sounds. Chunks of lobster tail in a rich gruyere sauce. Peak comfort food.",
+    "Try mixing pulled pork into your mac. Leftover BBQ + creamy mac = the ultimate comfort food mashup.",
+    "Breadcrumbs on top are non-negotiable for me. Panko mixed with melted butter and a little garlic powder. Crunch is everything.",
+    "Sun-dried tomatoes in mac and cheese add a tangy, almost sweet burst that cuts through all that richness. Plus they look gorgeous in there.",
+    "Roasted garlic stirred into mac and cheese gives it this mellow, sweet garlic flavor that's way more sophisticated than raw garlic. Roast a whole head and squeeze it right into the sauce.",
+    "Hot dogs cut up in mac and cheese. Yeah I said it. It's not gourmet but it's a whole vibe. Peak childhood energy.",
+  ],
+
+  // ── MICROWAVE sub-topics ──
+  microwave_velveeta: [
+    "Microwave mac gets a bad rap but those little Velveeta cups actually slap when you're in a rush.",
+    "The Velveeta Shells & Cheese cups are honestly one of the best quick lunches out there. 3 minutes in the microwave and you've got creamy mac. No shame, only cheese.",
+    "If you're buying microwave cups, Velveeta beats Kraft Easy Mac every time in my opinion. The shells hold more sauce and it's just creamier overall.",
+  ],
+  microwave_reheat: [
+    "If you're microwaving mac, add a splash of extra milk before reheating leftovers. It brings back the creaminess.",
+    "Reheat trick: put a damp paper towel over the bowl when microwaving leftover mac. The steam keeps it from drying out. Total game changer for next-day mac.",
+    "Leftover mac and cheese fried into patties is an actual thing and it's INCREDIBLE. Scoop cold mac, form into patties, coat in breadcrumbs, pan-fry until golden. Leftover transformation at its finest.",
+  ],
+  microwave_nojudge: [
+    "No judgment on microwave mac. We've all been there. It's still mac and cheese and it's still good.",
+    "Listen, not every meal needs to be a production. Sometimes microwave mac in your pajamas at 2 PM on a Saturday is exactly what life calls for.",
+    "Microwave mac exists because sometimes you need cheese and noodles in 3 minutes. That's a valid life need. No further justification required.",
+  ],
+  microwave_general: [
+    "Microwave mac gets a bad rap but those little Velveeta cups actually slap when you're in a rush.",
+    "If you're microwaving mac, add a splash of extra milk before reheating leftovers. It brings back the creaminess.",
+    "No judgment on microwave mac. We've all been there. It's still mac and cheese and it's still good.",
+    "You can actually make mac and cheese entirely in the microwave — cook pasta in a mug with water (3-4 min), drain, add cheese and milk, microwave 30 more seconds. Dorm room survival skill.",
+    "Microwave tip: always use 50% power for reheating mac and cheese. Full power heats unevenly and you get hot edges with a cold center. Low and slow, even in the microwave.",
+  ],
+
+  // ── HEALTHY sub-topics ──
+  healthy_squash: [
+    "You can sneak in butternut squash puree for a lighter sauce — it's creamy, naturally sweet, and adds vitamins. Kids can't even tell.",
+    "Cauliflower blended into mac and cheese sauce is another great veggie sneak. Steam it, blend it smooth, mix it into the cheese sauce. Adds creaminess and nutrients without changing the flavor.",
+    "Pumpkin puree (the plain kind, not pie filling) works amazingly in mac and cheese. It's naturally creamy, adds fiber, and gives the sauce a gorgeous golden color.",
+  ],
+  healthy_pasta: [
+    "Swap regular pasta for whole wheat or chickpea pasta if you want more protein and fiber. The cheese sauce covers any taste difference.",
+    "Chickpea pasta (like Banza) has twice the protein of regular pasta and it honestly holds up really well in mac and cheese. The cheese sauce masks any beany flavor completely.",
+    "Zucchini noodles with cheese sauce is technically... mac and cheese? Okay maybe not, but it IS delicious and way lower carb if that's your thing.",
+  ],
+  healthy_yogurt: [
+    "Use Greek yogurt instead of some of the butter/cream. It keeps things creamy but cuts a lot of the fat. Sneaky healthy.",
+    "Cottage cheese blended smooth makes an amazing high-protein mac base. Mix it with a little real cheese for flavor and you've got a protein-packed sauce nobody would guess.",
+    "Swap half the butter for avocado in your cheese sauce. Sounds weird, tastes creamy, and adds healthy fats. The cheese flavor dominates so you can't even taste the avocado.",
+  ],
+  healthy_general: [
+    "You can sneak in butternut squash puree for a lighter sauce — it's creamy, naturally sweet, and adds vitamins. Kids can't even tell.",
+    "Swap regular pasta for whole wheat or chickpea pasta if you want more protein and fiber. The cheese sauce covers any taste difference.",
+    "Use Greek yogurt instead of some of the butter/cream. It keeps things creamy but cuts a lot of the fat. Sneaky healthy.",
+    "Portion size is honestly the easiest health hack for mac and cheese. Have a smaller bowl with a big side salad. You still get the mac experience without going overboard.",
+    "Mac and cheese with broccoli and grilled chicken is basically a balanced meal. Carbs, protein, veggies, dairy — all the food groups in one delicious bowl.",
+  ],
+
+  // ── These stay pooled ──
+  best: [
+    "The best mac and cheese? It's the one made with love and way more cheese than the recipe calls for. That's just science.",
+    "Honestly, the best mac is a mix of stovetop creaminess and baked crunch. Make it creamy on the stove, then broil with breadcrumbs for 5 min.",
+    "Controversial opinion: the best mac and cheese is the one you ate as a kid. Nostalgia is the ultimate seasoning.",
+    "The best mac I ever had was from a food truck in Austin. Three cheeses, smoked brisket on top, jalapeño breadcrumbs. I still think about it. Street food mac hits different.",
+    "Ask 10 people what the best mac and cheese is, get 10 different answers. That's the beauty of it — there's no wrong way, just YOUR way.",
+  ],
+  greeting: [
+    "Hey hey! Ready to talk mac and cheese? I could go all day. What's on your mind — recipes, cheese recs, hot takes?",
+    "What's up! You've come to the right place. Everything here is mac and cheese, all the time. What do you wanna know?",
+    "Yo! Welcome to the cheesiest corner of the internet. Ask me anything about mac and cheese!",
+    "Oh hey there! Pull up a chair. Let's talk about the greatest food ever invented — mac and cheese. What's on your mind?",
+    "Well hello! You just made my day. I love talking mac and cheese. Recipes? History? Cheese drama? I'm ready for it all.",
+  ],
+  goodbye: [
+    "Later! Remember: life's too short for bad mac and cheese. Stay cheesy! 🧀",
+    "See ya! Go make yourself some mac and cheese. You deserve it.",
+    "Peace out! May your mac always be creamy and never dry. 🧀",
+    "Catch you later! Now I'm craving mac and cheese. This always happens. Worth it though. 🧀",
+    "Bye! If you make any mac tonight, send me good vibes. I'll be here, dreaming of cheese sauce.",
+  ],
+  thanks: [
+    "Anytime! Talking about mac and cheese is literally what I live for.",
+    "You're welcome! Now I'm hungry... might go make a batch myself.",
+    "No prob! Always happy to spread the mac and cheese gospel. 🧀",
+    "Hey, thank YOU for talking mac with me. Most people don't appreciate a good cheese conversation. You get it.",
+    "Glad I could help! If you try any of these ideas, let me know how it turns out. I love hearing mac and cheese success stories.",
+  ],
+  opinion: [
+    "My honest opinion? Mac and cheese is the single greatest comfort food ever created. I will not be taking questions on this.",
+    "I think about mac and cheese more than is probably healthy. But when something's this good, can you blame me?",
+    "Mac and cheese is proof that simple things can be perfect. Pasta + cheese + heat = magic.",
+    "Hot take: mac and cheese is an acceptable dinner for adults. Anyone who says otherwise is lying or hasn't had good mac and cheese.",
+    "My opinion on mac and cheese? It should be its own food group. Carbs? Dairy? No. Mac and cheese. That's the category.",
+    "Every mac and cheese is valid. Boxed, homemade, vegan, baked, stovetop, fancy restaurant — they all deserve respect. This is a judgment-free cheese zone.",
+  ],
+};
+
+// Keywords that map to each topic
+const keywords = {
+  // ── Recipe keywords (specific first, general last) ──
+  recipe_classic:   ["classic recipe", "traditional recipe", "roux", "from scratch", "homemade", "375", "the real way"],
+  recipe_stovetop:  ["stovetop", "stove top", "stove", "no bake", "no oven", "pot"],
+  recipe_creamy:    ["creamy", "cream cheese", "smooth", "silky", "gooey", "extra creamy"],
+  recipe_onepot:    ["one pot", "one-pot", "minimal", "fewer dishes", "simple", "easiest"],
+  recipe_general:   ["recipe", "make", "cook", "how to", "instructions", "prepare", "diy", "how do i"],
+
+  // ── Cheese keywords ──
+  cheese_cheddar:   ["cheddar", "gruyere", "fontina", "sharp"],
+  cheese_american:  ["american cheese", "american", "processed cheese", "singles"],
+  cheese_gouda:     ["gouda", "smoked gouda", "smoked", "monterey", "nutty"],
+  cheese_velveeta:  ["velveeta", "liquid gold", "processed"],
+  cheese_general:   ["cheese", "mozzarella", "parmesan", "colby", "brie", "what cheese", "which cheese", "best cheese"],
+
+  // ── Baked keywords ──
+  baked_breadcrumb: ["breadcrumb", "panko", "crispy top", "crunchy top", "broil", "topping"],
+  baked_sauce:      ["dry", "too thick", "thin sauce", "sauce consistency", "watery"],
+  baked_resting:    ["rest", "cool down", "wait", "let it sit", "set up"],
+  baked_general:    ["baked", "bake", "oven", "casserole", "crispy", "crunchy"],
+
+  // ── Kraft keywords ──
+  kraft_midnight:   ["midnight", "late night", "snack", "guilty pleasure", "comfort", "nostalgia"],
+  kraft_canada:     ["canada", "canadian", "kraft dinner", "kd"],
+  kraft_trick:      ["trick", "tip", "hack", "better", "improve", "upgrade"],
+  kraft_general:    ["kraft", "boxed", "box", "powder", "packet", "store bought", "storebought", "instant"],
+
+  // ── Vegan keywords ──
+  vegan_cashew:     ["cashew", "miso", "turmeric", "blend"],
+  vegan_nooch:      ["nutritional yeast", "nooch", "yeast"],
+  vegan_sweetpotato:["sweet potato", "squash"],
+  vegan_general:    ["vegan", "dairy free", "dairy-free", "plant based", "plant-based", "no dairy", "lactose"],
+
+  // ── Spicy keywords ──
+  spicy_jalapeno:   ["jalapeño", "jalapeno", "sriracha", "habanero"],
+  spicy_buffalo:    ["buffalo", "frank's", "franks", "hot sauce", "blue cheese", "wing"],
+  spicy_pepperjack: ["pepper jack", "pepperjack"],
+  spicy_general:    ["spicy", "spice", "hot", "heat", "kick", "fire"],
+
+  // ── History keywords ──
+  history_ancient:   ["ancient", "14th century", "medieval", "oldest", "italian", "liber de coquina", "how old"],
+  history_jefferson:  ["jefferson", "1802", "president", "state dinner", "popularize"],
+  history_kraft:      ["1937", "depression", "great depression", "19 cents"],
+  history_raffald:    ["1770", "raffald", "cookbook", "first recipe", "english", "first modern"],
+  history_wwii:       ["world war", "wwii", "ww2", "war", "rationed", "ration", "wartime", "1940s"],
+  history_southern:   ["southern", "south", "soul food", "african american", "holiday", "tradition", "traditional", "gatherings", "cultural", "heritage", "family reunion"],
+  history_hemings:    ["hemings", "james hemings", "enslaved", "chef", "paris", "who actually", "who really", "who cooked"],
+  history_word:       ["word macaroni", "why is it called", "meaning of macaroni", "tube shaped", "where does the name"],
+  history_general:    ["history", "origin", "invented", "who made", "where did", "old", "started", "first", "come from", "came from", "how long", "back in", "century", "original", "creation", "began", "discover"],
+
+  // ── Pasta keywords ──
+  pasta_shells:     ["shell", "shells", "pocket", "elbow"],
+  pasta_ridged:     ["ridged", "rigatoni", "cavatappi", "ridges", "grooves", "texture"],
+  pasta_any:        ["any pasta", "spaghetti", "penne", "different pasta", "other pasta", "wrong pasta"],
+  pasta_general:    ["pasta", "noodle", "shape", "macaroni shape", "what kind of pasta"],
+
+  // ── Add-in keywords ──
+  addon_bacon:      ["bacon", "onion", "broccoli", "truffle", "vegetable", "veggie"],
+  addon_lobster:    ["lobster", "seafood", "fancy", "expensive", "upscale", "gourmet"],
+  addon_bbq:        ["pulled pork", "pork", "bbq", "barbecue", "meat"],
+  addon_breadcrumb: ["breadcrumb", "panko", "crumb", "crust"],
+  addon_general:    ["add", "topping", "mix in", "put in", "goes with", "pair", "what goes"],
+
+  // ── Microwave keywords ──
+  microwave_velveeta: ["velveeta cup", "cup", "single serve"],
+  microwave_reheat:   ["reheat", "leftover", "next day", "warm up", "heat up"],
+  microwave_nojudge:  ["lazy", "no effort", "judge"],
+  microwave_general:  ["microwave", "nuke", "quick", "fast", "easy", "minute", "shortcut"],
+
+  // ── Healthy keywords ──
+  healthy_squash:   ["squash", "butternut", "hidden veggie", "kids", "sneak"],
+  healthy_pasta:    ["whole wheat", "chickpea pasta", "protein", "fiber", "grain"],
+  healthy_yogurt:   ["yogurt", "greek yogurt", "low fat", "less fat", "lighter", "cut fat"],
+  healthy_general:  ["healthy", "health", "diet", "light", "calories", "nutritious", "good for you", "guilt free"],
+
+  // ── Simple topics (no sub-topics needed) ──
+  best:      ["best", "favorite", "favourite", "top", "greatest", "perfect", "ultimate", "number one"],
+  greeting:  ["hello", "hi", "hey", "sup", "what's up", "howdy", "yo", "hola"],
+  goodbye:   ["bye", "goodbye", "see ya", "later", "gotta go", "peace", "cya"],
+  thanks:    ["thanks", "thank you", "thx", "appreciate", "ty"],
+  opinion:   ["opinion", "think", "feel", "thoughts", "take", "view"],
+};
+
+// Deflections for when someone goes off-topic
+const offTopic = [
+  "Hmm, that's cool and all, but can we talk about mac and cheese instead? I'm kind of a one-trick pony. 🧀",
+  "I appreciate the thought, but my brain is literally just mac and cheese. Got any cheesy questions?",
+  "Not really my area of expertise... unless you can somehow relate it to mac and cheese? 😄",
+  "I'm gonna level with you — I only know about mac and cheese. It's a blessing and a curse. Mostly a blessing.",
+  "Interesting! But I'm a mac and cheese specialist. That's it. That's the whole resume. Wanna talk noodles and cheese?",
+  "Look, I'd love to help with that, but my entire personality is mac and cheese. Ask me something cheesy!",
+];
+
+// ── The Brain: figures out what the user is talking about ─
+function getResponse(input) {
+  var text = input.toLowerCase();
+
+  // Check each topic's keywords to find a match
+  for (var topic in keywords) {
+    var words = keywords[topic];
+    for (var i = 0; i < words.length; i++) {
+      if (text.includes(words[i])) {
+        // Found a match! Pick a random response from that topic
+        var replies = responses[topic];
+        return replies[Math.floor(Math.random() * replies.length)];
+      }
+    }
+  }
+
+  // Nothing matched — steer them back to mac and cheese
+  return offTopic[Math.floor(Math.random() * offTopic.length)];
+}
+
+// ── Chat UI Logic ────────────────────────────────────────
+var chat = document.getElementById('chat');
+var typing = document.getElementById('typing');
+var userInput = document.getElementById('userInput');
+var sendBtn = document.getElementById('sendBtn');
+
+function addMessage(text, sender) {
+  var div = document.createElement('div');
+  div.className = 'message ' + sender;
+  if (sender === 'bot') {
+    div.innerHTML = '<div class="name">Cheddar Bot</div>' + text;
+  } else {
+    div.textContent = text;
+  }
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  typing.style.display = 'flex';
+  chat.appendChild(typing);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function hideTyping() {
+  typing.style.display = 'none';
+}
+
+function handleSend() {
+  var text = userInput.value.trim();
+  if (!text) return;
+
+  addMessage(text, 'user');
+  userInput.value = '';
+
+  // Show "typing..." dots, then reply after a short delay
+  showTyping();
+  var delay = 400 + Math.random() * 800;
+  setTimeout(function() {
+    hideTyping();
+    addMessage(getResponse(text), 'bot');
+  }, delay);
+}
+
+sendBtn.addEventListener('click', handleSend);
+userInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') handleSend();
+});
+
+userInput.focus();
+</script>
+</body>
+</html>

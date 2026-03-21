@@ -24,15 +24,26 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Serve index.html
-  const htmlPath = path.join(__dirname, 'index.html');
-  if (fs.existsSync(htmlPath) && (req.url === '/' || req.url === '/index.html')) {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(fs.readFileSync(htmlPath));
-  } else {
-    res.writeHead(404);
-    res.end('Not found');
+  // Serve HTML pages
+  const pages = {
+    '/': 'index.html',
+    '/index.html': 'index.html',
+    '/chat': 'chat.html',
+    '/chat.html': 'chat.html',
+  };
+
+  const file = pages[req.url];
+  if (file) {
+    const filePath = path.join(__dirname, file);
+    if (fs.existsSync(filePath)) {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(fs.readFileSync(filePath));
+      return;
+    }
   }
+
+  res.writeHead(404);
+  res.end('Not found');
 });
 
 // WebSocket server - handles multiplayer
