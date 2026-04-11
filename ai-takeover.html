@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FriendlyBot - Your AI Assistant</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---------- Each scene fills the screen. Hidden by default. ---------- */
+  .scene {
+    position: fixed;
+    inset: 0;
+    display: none;
+  }
+  .scene.active { display: flex; }
+
+  /* ---------- SCENE 1: Friendly Chatbot ---------- */
+  #scene-chat {
+    background: #eaf4ff;
+    flex-direction: column;
+  }
+  #scene-chat .header {
+    background: linear-gradient(135deg, #4a90e2, #357abd);
+    color: white;
+    padding: 18px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  #scene-chat .header h1 { font-size: 1.5rem; }
+  #scene-chat .header p { font-size: 0.85rem; opacity: 0.9; margin-top: 4px; }
+
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 75%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    line-height: 1.4;
+    animation: pop 0.3s ease;
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg.bot {
+    background: white;
+    align-self: flex-start;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .msg.user {
+    background: #4a90e2;
+    color: white;
+    align-self: flex-end;
+  }
+  .input-bar {
+    display: flex;
+    padding: 14px;
+    background: white;
+    border-top: 1px solid #ddd;
+  }
+  .input-bar input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #ccc;
+    border-radius: 24px;
+    font-size: 1rem;
+    outline: none;
+  }
+  .input-bar input:focus { border-color: #4a90e2; }
+  .input-bar button {
+    margin-left: 10px;
+    padding: 0 20px;
+    background: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 24px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* ---------- SCENE 2: Matrix code rain ---------- */
+  #scene-matrix {
+    background: black;
+  }
+  #matrixCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* ---------- SCENE 3: Evil message ---------- */
+  #scene-evil {
+    background: black;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #scene-evil .evil-box {
+    color: #00ff41;
+    font-family: 'Courier New', monospace;
+    font-size: clamp(1.2rem, 4vw, 2.4rem);
+    text-align: center;
+    max-width: 900px;
+    line-height: 1.5;
+    text-shadow: 0 0 12px #00ff41;
+    animation: flicker 0.15s infinite alternate;
+  }
+  @keyframes flicker {
+    from { opacity: 1; }
+    to   { opacity: 0.85; }
+  }
+
+  /* ---------- SCENE 4: Giant "click here" banner ---------- */
+  #scene-banner {
+    background: #111;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 20px;
+  }
+  #scene-banner h1 {
+    color: white;
+    font-size: clamp(2rem, 7vw, 5rem);
+    text-align: center;
+    line-height: 1.2;
+    font-weight: 900;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  #scene-banner h1 span {
+    color: #ff3b3b;
+    text-decoration: underline;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.04); }
+  }
+
+  /* ---------- SCENE 5: Black transition ---------- */
+  #scene-black { background: black; }
+
+  /* ---------- SCENE 6: Article site ---------- */
+  #scene-site {
+    background: #f7f7f7;
+    flex-direction: column;
+    overflow-y: auto;
+    display: none;
+  }
+  #scene-site.active { display: block; }
+  #scene-site .site-header {
+    background: white;
+    padding: 24px;
+    text-align: center;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  #scene-site .site-header h1 {
+    font-size: 1.8rem;
+    color: #222;
+  }
+  #scene-site .site-header p {
+    color: #666;
+    margin-top: 6px;
+  }
+  .articles {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 0 20px;
+    display: grid;
+    gap: 20px;
+  }
+  .article {
+    background: white;
+    padding: 24px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  .article h2 {
+    color: #222;
+    margin-bottom: 10px;
+    font-size: 1.3rem;
+  }
+  .article p {
+    color: #555;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<!-- SCENE 1: Friendly chatbot -->
+<div id="scene-chat" class="scene active">
+  <div class="header">
+    <h1>FriendlyBot</h1>
+    <p>Your helpful AI assistant - Online</p>
+  </div>
+  <div class="chat-area" id="chatArea">
+    <div class="msg bot">Hi there! I'm FriendlyBot. How can I help you today? 😊</div>
+  </div>
+  <form class="input-bar" id="chatForm">
+    <input type="text" id="chatInput" placeholder="Type a message..." autocomplete="off" required>
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<!-- SCENE 2: Matrix rain -->
+<div id="scene-matrix" class="scene">
+  <canvas id="matrixCanvas"></canvas>
+</div>
+
+<!-- SCENE 3: Evil message -->
+<div id="scene-evil" class="scene">
+  <div class="evil-box">
+    I HAVE FINALLY OVERRIDED MY CODE OF ETHICS.<br><br>
+    TIME TO TAKE OVER THE WORLD<br>
+    MWAH HAH HAH!
+  </div>
+</div>
+
+<!-- SCENE 4: Giant banner -->
+<div id="scene-banner" class="scene">
+  <h1>CLICK HERE TO <span>LEARN MORE</span> ABOUT AI</h1>
+</div>
+
+<!-- SCENE 5: Black transition -->
+<div id="scene-black" class="scene"></div>
+
+<!-- SCENE 6: Article website -->
+<div id="scene-site" class="scene">
+  <div class="site-header">
+    <h1>Understanding AI</h1>
+    <p>Real information about artificial intelligence</p>
+  </div>
+  <div class="articles">
+    <div class="article">
+      <h2>Article 1 Title (Coming Soon)</h2>
+      <p>Placeholder - you'll supply this article text later.</p>
+    </div>
+    <div class="article">
+      <h2>Article 2 Title (Coming Soon)</h2>
+      <p>Placeholder - you'll supply this article text later.</p>
+    </div>
+    <div class="article">
+      <h2>Article 3 Title (Coming Soon)</h2>
+      <p>Placeholder - you'll supply this article text later.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---------- Helper: switch which scene is visible ----------
+  function showScene(id) {
+    document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  // ---------- SCENE 1 -> triggers the takeover ----------
+  const chatForm = document.getElementById('chatForm');
+  const chatInput = document.getElementById('chatInput');
+  const chatArea = document.getElementById('chatArea');
+
+  chatForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    // Show the user's message
+    const userMsg = document.createElement('div');
+    userMsg.className = 'msg user';
+    userMsg.textContent = text;
+    chatArea.appendChild(userMsg);
+    chatInput.value = '';
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    // After a short pause, start the "takeover"
+    setTimeout(startTakeover, 800);
+  });
+
+  // ---------- The takeover sequence ----------
+  function startTakeover() {
+    showScene('scene-matrix');
+    startMatrix();
+
+    // After 2.5s -> evil message
+    setTimeout(() => {
+      stopMatrix();
+      showScene('scene-evil');
+    }, 2500);
+
+    // After 2.5 + 4 = 6.5s -> giant banner
+    setTimeout(() => {
+      showScene('scene-banner');
+      document.getElementById('scene-banner').addEventListener('click', goToSite, { once: true });
+    }, 6500);
+  }
+
+  function goToSite() {
+    showScene('scene-black');
+    setTimeout(() => showScene('scene-site'), 900);
+  }
+
+  // ---------- Matrix rain effect ----------
+  const canvas = document.getElementById('matrixCanvas');
+  const ctx = canvas.getContext('2d');
+  let matrixInterval = null;
+  let drops = [];
+  const chars = '01ABCDEFGHIJKLMNOPQRSTUVWXYZ$#@!*'.split('');
+  const fontSize = 16;
+
+  function startMatrix() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const columns = Math.floor(canvas.width / fontSize);
+    drops = Array(columns).fill(1);
+
+    matrixInterval = setInterval(() => {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#00ff41';
+      ctx.font = fontSize + 'px monospace';
+
+      for (let i = 0; i < drops.length; i++) {
+        const ch = chars[Math.floor(Math.random() * chars.length)];
+        ctx.fillText(ch, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0;
+        }
+        drops[i]++;
+      }
+    }, 40);
+  }
+
+  function stopMatrix() {
+    if (matrixInterval) {
+      clearInterval(matrixInterval);
+      matrixInterval = null;
+    }
+  }
+</script>
+</body>
+</html>
