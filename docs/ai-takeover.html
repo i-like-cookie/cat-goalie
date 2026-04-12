@@ -247,6 +247,31 @@
         text-indent: -1.5em;
         padding-left: 1.5em;
       }
+      .article h2 {
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .article h2:hover {
+        color: #4a90e2;
+      }
+      .article h2::after {
+        content: "▸";
+        font-size: 1rem;
+        transition: transform 0.3s ease;
+      }
+      .article.open h2::after {
+        transform: rotate(90deg);
+      }
+      .article-body {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s ease;
+      }
+      .article.open .article-body {
+        max-height: 5000px;
+      }
     </style>
   </head>
   <body>
@@ -304,14 +329,19 @@
       <div class="articles">
         <div class="article">
           <h2>Article 1 Title (Coming Soon)</h2>
-          <p>Placeholder - you'll supply this article text later.</p>
+          <div class="article-body">
+            <p>Placeholder - you'll supply this article text later.</p>
+          </div>
         </div>
         <div class="article">
           <h2>Article 2 Title (Coming Soon)</h2>
-          <p>Placeholder - you'll supply this article text later.</p>
+          <div class="article-body">
+            <p>Placeholder - you'll supply this article text later.</p>
+          </div>
         </div>
         <div class="article">
           <h2>The Age of AI</h2>
+          <div class="article-body">
           <p>In 2018, AI created a painting that sold for $432,500 — that is a lot of money, and it completely destroyed the hypothesis that creativity was limited to humans. Artificial intelligence is growing fast, and it is going to be cemented in the future. Humans should keep developing AI since it can help experts with complicated tasks, it can lead to deflation, and it also can do tedious work, and let people do more creative, fun, and meaningful things.</p>
 
           <h3>AI Can Help Experts Do Their Jobs Better</h3>
@@ -342,6 +372,7 @@
             <p>Marr, Bernard. "Why AI Won't Take over the World Anytime Soon." Forbes, 13 May 2024.</p>
             <p>Rieder. "AI-Driven Investing &amp; Deflationary Growth." BlackRock, 2025.</p>
             <p>"10 Strategic Benefits of AI in Modern Organisations." Oneadvanced.com, 2024.</p>
+          </div>
           </div>
         </div>
       </div>
@@ -440,6 +471,13 @@
           matrixInterval = null;
         }
       }
+
+      // ---------- Article accordion: click title to expand ----------
+      document.querySelectorAll(".article h2").forEach((title) => {
+        title.addEventListener("click", () => {
+          title.parentElement.classList.toggle("open");
+        });
+      });
     </script>
   </body>
 </html>
