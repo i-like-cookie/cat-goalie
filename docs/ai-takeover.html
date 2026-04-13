@@ -645,9 +645,13 @@
       }
 
       // ---------- If URL has #articles, skip straight to article site ----------
-      if (window.location.hash === "#articles") {
-        showScene("scene-site");
+      function checkHash() {
+        if (window.location.hash === "#articles") {
+          showScene("scene-site");
+        }
       }
+      checkHash();
+      window.addEventListener("hashchange", checkHash);
 
       // ---------- SCENE 1 -> triggers the takeover ----------
       const chatForm = document.getElementById("chatForm");
