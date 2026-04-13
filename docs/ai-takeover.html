@@ -329,6 +329,68 @@
         text-indent: -1.5em;
         padding-left: 1.5em;
       }
+
+      /* ---------- Dark mode toggle button ---------- */
+      .dark-toggle {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: none;
+        border: 2px solid #ccc;
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        color: #555;
+        transition: all 0.3s ease;
+      }
+      .dark-toggle:hover {
+        border-color: #888;
+        color: #222;
+      }
+
+      /* ---------- Dark mode styles ---------- */
+      #scene-site.dark {
+        background: #1a1a2e;
+      }
+      #scene-site.dark .site-header {
+        background: #16213e;
+        border-bottom-color: #2a2a4a;
+      }
+      #scene-site.dark .site-header h1 {
+        color: #e0e0e0;
+      }
+      #scene-site.dark .site-header p {
+        color: #999;
+      }
+      #scene-site.dark .article {
+        background: #16213e;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+      #scene-site.dark .article h2 {
+        color: #e0e0e0;
+      }
+      #scene-site.dark .article h2:hover {
+        color: #6cb4ee;
+      }
+      #scene-site.dark .article h3 {
+        color: #ccc;
+      }
+      #scene-site.dark .article p {
+        color: #bbb;
+      }
+      #scene-site.dark .article .works-cited {
+        border-top-color: #2a2a4a;
+        color: #888;
+      }
+      #scene-site.dark .dark-toggle {
+        border-color: #555;
+        color: #bbb;
+      }
+      #scene-site.dark .dark-toggle:hover {
+        border-color: #999;
+        color: #eee;
+      }
       .article h2 {
         cursor: pointer;
         display: flex;
@@ -404,9 +466,10 @@
 
     <!-- SCENE 6: Article website -->
     <div id="scene-site" class="scene">
-      <div class="site-header">
+      <div class="site-header" style="position: relative;">
         <h1>Understanding AI</h1>
         <p>Real information about artificial intelligence</p>
+        <button class="dark-toggle" id="darkToggle">Dark Mode</button>
       </div>
       <div class="articles">
         <div class="article">
@@ -617,6 +680,14 @@
         title.addEventListener("click", () => {
           title.parentElement.classList.toggle("open");
         });
+      });
+
+      // ---------- Dark mode toggle ----------
+      document.getElementById("darkToggle").addEventListener("click", () => {
+        const site = document.getElementById("scene-site");
+        const btn = document.getElementById("darkToggle");
+        site.classList.toggle("dark");
+        btn.textContent = site.classList.contains("dark") ? "Light Mode" : "Dark Mode";
       });
     </script>
   </body>
