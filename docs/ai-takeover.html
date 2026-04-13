@@ -58,23 +58,43 @@
         100% { top: 110%; }
       }
       #scene-chat.glitching {
-        animation: shake 0.15s infinite, colorGlitch 0.4s infinite;
+        animation: shake 0.15s infinite, colorGlitch 0.4s infinite !important;
+      }
+      #scene-chat.glitching .header {
+        animation: colorGlitch 0.2s infinite !important;
       }
       #scene-chat.glitching .header h1,
       #scene-chat.glitching .msg {
-        animation: textGlitch 0.3s infinite;
+        animation: textGlitch 0.3s infinite !important;
       }
-      #scene-chat.glitching::after {
-        content: "";
+      #scene-chat.glitching .input-bar {
+        animation: shake 0.1s infinite !important;
+      }
+      .glitch-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+      }
+      .glitch-overlay .scanline {
         position: absolute;
-        top: 0;
         left: 0;
         right: 0;
         height: 4px;
-        background: rgba(0, 255, 65, 0.3);
-        animation: scanline 0.8s linear infinite;
-        pointer-events: none;
-        z-index: 999;
+        background: rgba(0, 255, 65, 0.4);
+        animation: scanline 0.6s linear infinite;
+      }
+      .glitch-overlay .static {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.03) 0px,
+          rgba(0, 0, 0, 0.03) 1px,
+          transparent 1px,
+          transparent 2px
+        );
+        animation: textGlitch 0.2s infinite;
       }
 
       /* ---------- Each scene fills the screen. Hidden by default. ---------- */
@@ -91,6 +111,7 @@
       #scene-chat {
         background: #eaf4ff;
         flex-direction: column;
+        position: relative;
       }
       #scene-chat .header {
         background: linear-gradient(135deg, #4a90e2, #357abd);
@@ -491,19 +512,32 @@
 
           // Start screen glitch after a beat
           setTimeout(() => {
-            document.getElementById("scene-chat").classList.add("glitching");
+            const sceneChat = document.getElementById("scene-chat");
+            sceneChat.classList.add("glitching");
+
+            // Add overlay with scanline + static
+            const overlay = document.createElement("div");
+            overlay.className = "glitch-overlay";
+            overlay.innerHTML = '<div class="scanline"></div><div class="static"></div>';
+            document.body.appendChild(overlay);
           }, 400);
 
-          // Flash screen black briefly
+          // Flash screen black briefly, multiple times
           setTimeout(() => {
-            document.getElementById("scene-chat").style.background = "black";
-            setTimeout(() => {
-              document.getElementById("scene-chat").style.background = "";
-            }, 150);
-          }, 1200);
+            const sceneChat = document.getElementById("scene-chat");
+            sceneChat.style.background = "black";
+            setTimeout(() => { sceneChat.style.background = ""; }, 100);
+            setTimeout(() => { sceneChat.style.background = "black"; }, 250);
+            setTimeout(() => { sceneChat.style.background = ""; }, 350);
+            setTimeout(() => { sceneChat.style.background = "black"; }, 500);
+          }, 1400);
 
           // Transition to matrix
-          setTimeout(startTakeover, 2000);
+          setTimeout(() => {
+            const overlay = document.querySelector(".glitch-overlay");
+            if (overlay) overlay.remove();
+            startTakeover();
+          }, 2500);
         }, 800);
       });
 
