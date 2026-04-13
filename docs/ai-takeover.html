@@ -572,7 +572,7 @@
       const ctx = canvas.getContext("2d");
       let matrixInterval = null;
       let drops = [];
-      const chars = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ$#@!*".split("");
+      const chars = "01".split("");
       const fontSize = 16;
 
       function startMatrix() {
@@ -584,11 +584,18 @@
         matrixInterval = setInterval(() => {
           ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = "#00ff41";
           ctx.font = fontSize + "px monospace";
 
           for (let i = 0; i < drops.length; i++) {
             const ch = chars[Math.floor(Math.random() * chars.length)];
+
+            // 20% chance of red, otherwise green
+            if (Math.random() < 0.2) {
+              ctx.fillStyle = "#ff2222";
+            } else {
+              ctx.fillStyle = "#00ff41";
+            }
+
             ctx.fillText(ch, i * fontSize, drops[i] * fontSize);
             if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
               drops[i] = 0;
