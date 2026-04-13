@@ -334,18 +334,37 @@
         color: #666;
         margin-top: 6px;
       }
+      .site-intro {
+        max-width: 800px;
+        margin: 24px auto;
+        padding: 0 20px;
+        color: #555;
+        line-height: 1.7;
+        text-align: center;
+        font-size: 1.05rem;
+      }
+      #scene-site.dark .site-intro {
+        color: #bbb;
+      }
       .articles {
-        max-width: 900px;
+        max-width: 1200px;
         margin: 30px auto;
         padding: 0 20px;
         display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 20px;
+      }
+      @media (max-width: 768px) {
+        .articles {
+          grid-template-columns: 1fr;
+        }
       }
       .article {
         background: white;
         padding: 24px;
         border-radius: 10px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        align-self: start;
       }
       .article h2 {
         color: #222;
@@ -513,6 +532,9 @@
         <h1>Understanding AI</h1>
         <p>Real information about artificial intelligence</p>
         <button class="dark-toggle" id="darkToggle">Dark Mode</button>
+      </div>
+      <div class="site-intro">
+        This site is filled with reliable information and articles about Artificial Intelligence. AI is a new and fascinating discovery, built to benefit humankind and push beyond the limits of human knowledge. Although not everyone may like AI, it is certain that our future will have AI ingrained in every function of society. (Except maybe the cats 🙂) The creators of this website hope you like it!
       </div>
       <div class="articles">
         <div class="article">
