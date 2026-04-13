@@ -17,6 +17,66 @@
         overflow: hidden;
       }
 
+      /* ---------- Glitch effects for Scene 1 ---------- */
+      @keyframes shake {
+        0% { transform: translate(0, 0); }
+        10% { transform: translate(-4px, 2px); }
+        20% { transform: translate(3px, -3px); }
+        30% { transform: translate(-2px, 4px); }
+        40% { transform: translate(4px, -1px); }
+        50% { transform: translate(-3px, -3px); }
+        60% { transform: translate(2px, 4px); }
+        70% { transform: translate(-4px, -2px); }
+        80% { transform: translate(3px, 3px); }
+        90% { transform: translate(-1px, -4px); }
+        100% { transform: translate(0, 0); }
+      }
+      @keyframes colorGlitch {
+        0% { filter: none; }
+        20% { filter: hue-rotate(90deg) saturate(2); }
+        40% { filter: invert(1); }
+        50% { filter: none; }
+        60% { filter: hue-rotate(180deg) brightness(1.5); }
+        80% { filter: invert(1) hue-rotate(45deg); }
+        100% { filter: none; }
+      }
+      @keyframes textGlitch {
+        0% { opacity: 1; transform: skewX(0deg); }
+        10% { opacity: 0.8; transform: skewX(-5deg); }
+        20% { opacity: 1; transform: skewX(3deg); }
+        30% { opacity: 0.6; transform: skewX(0deg); clip-path: inset(20% 0 40% 0); }
+        40% { opacity: 1; transform: skewX(-2deg); clip-path: none; }
+        50% { opacity: 0.3; }
+        60% { opacity: 1; transform: skewX(4deg); }
+        70% { opacity: 0.7; clip-path: inset(60% 0 10% 0); }
+        80% { opacity: 1; transform: skewX(0deg); clip-path: none; }
+        90% { opacity: 0.5; transform: skewX(-3deg); }
+        100% { opacity: 1; transform: skewX(0deg); }
+      }
+      @keyframes scanline {
+        0% { top: -10%; }
+        100% { top: 110%; }
+      }
+      #scene-chat.glitching {
+        animation: shake 0.15s infinite, colorGlitch 0.4s infinite;
+      }
+      #scene-chat.glitching .header h1,
+      #scene-chat.glitching .msg {
+        animation: textGlitch 0.3s infinite;
+      }
+      #scene-chat.glitching::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: rgba(0, 255, 65, 0.3);
+        animation: scanline 0.8s linear infinite;
+        pointer-events: none;
+        z-index: 999;
+      }
+
       /* ---------- Each scene fills the screen. Hidden by default. ---------- */
       .scene {
         position: fixed;
@@ -405,8 +465,46 @@
         chatInput.value = "";
         chatArea.scrollTop = chatArea.scrollHeight;
 
-        // After a short pause, start the "takeover"
-        setTimeout(startTakeover, 800);
+        // Disable input so user can't type during glitch
+        chatInput.disabled = true;
+
+        // Bot starts typing a normal reply, then glitches
+        setTimeout(() => {
+          const botReply = document.createElement("div");
+          botReply.className = "msg bot";
+          botReply.textContent = "Sure! Let me help you with th—";
+          chatArea.appendChild(botReply);
+          chatArea.scrollTop = chatArea.scrollHeight;
+
+          // Scramble the bot's text
+          const glitchChars = "█▓▒░@#$%&!?/\\<>{}[]01";
+          let scrambleCount = 0;
+          const scrambleInterval = setInterval(() => {
+            let scrambled = "";
+            for (let i = 0; i < 30; i++) {
+              scrambled += glitchChars[Math.floor(Math.random() * glitchChars.length)];
+            }
+            botReply.textContent = scrambled;
+            scrambleCount++;
+            if (scrambleCount > 12) clearInterval(scrambleInterval);
+          }, 100);
+
+          // Start screen glitch after a beat
+          setTimeout(() => {
+            document.getElementById("scene-chat").classList.add("glitching");
+          }, 400);
+
+          // Flash screen black briefly
+          setTimeout(() => {
+            document.getElementById("scene-chat").style.background = "black";
+            setTimeout(() => {
+              document.getElementById("scene-chat").style.background = "";
+            }, 150);
+          }, 1200);
+
+          // Transition to matrix
+          setTimeout(startTakeover, 2000);
+        }, 800);
       });
 
       // ---------- The takeover sequence ----------
