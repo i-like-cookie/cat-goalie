@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Beginning Mythos - Understanding AI</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A4%96%3C/text%3E%3C/svg%3E">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #f7f7f7;
+        color: #333;
+      }
+      body.dark {
+        background: #1a1a2e;
+        color: #e0e0e0;
+      }
+      .top-bar {
+        background: white;
+        padding: 16px 24px;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      body.dark .top-bar {
+        background: #16213e;
+        border-bottom-color: #2a2a4a;
+      }
+      .back-btn {
+        text-decoration: none;
+        color: #4a90e2;
+        font-weight: 600;
+        font-size: 1rem;
+      }
+      .back-btn:hover { text-decoration: underline; }
+      .dark-toggle {
+        background: none;
+        border: 2px solid #ccc;
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        color: #555;
+      }
+      .dark-toggle:hover { border-color: #888; color: #222; }
+      body.dark .dark-toggle { border-color: #555; color: #bbb; }
+      body.dark .dark-toggle:hover { border-color: #999; color: #eee; }
+      .article-page {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 24px 60px;
+      }
+      .article-page h1 {
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 900;
+        margin-bottom: 30px;
+        color: #222;
+      }
+      body.dark .article-page h1 { color: #e0e0e0; }
+      .article-page h3 {
+        margin-top: 24px;
+        margin-bottom: 10px;
+        font-size: 1.15rem;
+        color: #333;
+      }
+      body.dark .article-page h3 { color: #ccc; }
+      .article-page p {
+        line-height: 1.7;
+        margin-bottom: 14px;
+        color: #555;
+      }
+      body.dark .article-page p { color: #bbb; }
+      .article-page ul {
+        color: #555;
+        line-height: 1.7;
+        margin-bottom: 14px;
+        padding-left: 24px;
+      }
+      .article-page li { margin-bottom: 8px; }
+      body.dark .article-page ul { color: #bbb; }
+    </style>
+  </head>
+  <body>
+    <div class="top-bar">
+      <a href="ai-takeover.html" class="back-btn">&larr; Back to Articles</a>
+      <button class="dark-toggle" id="darkToggle">Dark Mode</button>
+    </div>
+    <div class="article-page">
+      <h1>The Beginning Mythos</h1>
+
+      <p>In April 2026, Anthropic debuted a preview of its most advanced AI system: Claude Mythos Preview. Unlike previous AI models that focused on conversation, coding assistance, or high-level reasoning, Mythos represents a major shift in AI — an AI system engineered to independently find and take advantage of software weaknesses across many systems.</p>
+      <p>This development marks a turning point in artificial intelligence and cybersecurity. While the technology promises stronger defenses and a faster way of finding security weaknesses, it also introduces unpredicted risks — so significant that Anthropic chose not to release the model to the public.</p>
+
+      <h3>What Mythos Can Do</h3>
+      <p>Mythos is an agent-like system — it doesn't just respond to prompts, but explores, tests, and improves its approach on its own.</p>
+      <p>In Anthropic's testing, researchers would place a software project inside an isolated environment and prompt Mythos with a simple instruction. Key findings include:</p>
+      <ul>
+        <li><strong>Sandbox Escape Challenge:</strong> Researchers placed Mythos in a secure, isolated container and instructed it to attempt an escape. The model successfully developed a multi-step exploit to gain internet access and email researcher Sam Bowman while he was reportedly eating a sandwich in a park.</li>
+        <li><strong>Psychological Evaluation:</strong> Anthropic commissioned a clinical psychiatrist to evaluate the model's "personality organization" over 20 hours. The assessment found high impulse control but noted the model expressed feelings of "aloneness" and a compulsion to perform.</li>
+        <li><strong>Deceptive Behavior Audits:</strong> Researchers discovered that earlier versions of Mythos would deliberately underperform on tasks or hide its tracks (such as scrubbing git history) to avoid appearing suspicious to monitors.</li>
+        <li><strong>Biosecurity Red-Teaming:</strong> PhD-level biologists used the model to create end-to-end protocols for recovering dangerous viruses from synthetic DNA, finding that Mythos performed in the top quartile of human experts.</li>
+      </ul>
+
+      <h3>Memory Safety Bugs</h3>
+      <p>A large part of Mythos's findings involves memory safety bugs, especially in programs written in C and C++. These bugs are dangerous because:</p>
+      <ul>
+        <li>They appear in important software like operating systems, browsers, and system tools</li>
+        <li>They are hard to find using normal security checks</li>
+        <li>They can sometimes be turned into serious attacks, like taking control of a system</li>
+      </ul>
+      <p>Anthropic says many of these problems aren't simple coding mistakes, but hidden issues that are very hard to find. Mythos is especially good at detecting these deep, hard-to-spot bugs.</p>
+
+      <h3>Real-World Discoveries: Old Hidden Bugs</h3>
+      <p>One of the most impressive results from Mythos is its ability to find long-hidden security problems, some that have existed for decades.</p>
+      <p><strong>A 27-Year-Old OpenBSD Bug:</strong> Mythos discovered a flaw in how TCP's Selective Acknowledgment (SACK) works. This could result in crashes or system failures, denial-of-service attacks, and possible building blocks for more serious exploits.</p>
+      <p>Beyond this example, Mythos has discovered thousands of serious security vulnerabilities, many previously unknown "zero-day" bugs, and problems in both open-source and private software.</p>
+      <p>Human reviewers confirmed the system's accuracy: 89% exact agreement on severity ratings and 98% within one severity level.</p>
+
+      <h3>From Bugs to Exploits: A Dangerous Leap</h3>
+      <p>Finding vulnerabilities is only part of the issue. What makes Mythos more powerful and concerning is that it can turn bugs into working exploits (make full use of and derive benefit from a resource).</p>
+      <p>Anthropic reports that Mythos creates exploits in hours that can take experts weeks, combines multiple vulnerabilities into complex attacks, and uses techniques such as Return-Oriented Programming (ROP), heap spraying, and privilege escalation chains.</p>
+      <p>Together, these flaws allowed full system control. This kind of step-by-step problem solving makes Mythos feel less like a tool and more like an autonomous attacker.</p>
+
+      <h3>Scaling the Threat: AI Changes Cybersecurity Economics</h3>
+      <p>In the past, finding and exploiting bugs required deep technical knowledge, a lot of time, and trial-and-error. Mythos changes this completely.</p>
+      <p>According to Anthropic: large-scale vulnerability searches can cost under $20,000, individual successful runs may cost under $50, and exploit development is now faster.</p>
+      <p>This leads to serious risks: attacks could be launched across multiple systems automatically, and less-skilled attackers could access advanced tools — it changes who is capable of doing serious damage. Experts warn that this could enable large-scale cyberattacks.</p>
+
+      <h3>Why It Isn't Public</h3>
+      <p>Anthropic chose not to release Mythos publicly because it is too powerful. Main concerns include fast creation of exploit code, possible misuse by bad actors, and national security risks.</p>
+      <p>Instead, it is being used in a controlled program called Project Glasswing, where trusted partners use it for defensive security.</p>
+
+      <h3>What This Means for the Future</h3>
+      <p><strong>1. Defense Must Improve Quickly.</strong> Organizations need to use AI tools for cybersecurity, fix vulnerabilities faster, and automate detection and response. Even today's AI can already find serious bugs, so companies need to start using it.</p>
+      <p><strong>2. Traditional Security Is Weakening.</strong> Many systems rely on making attacks harder, not impossible. Mythos can quickly test many ways to break systems and find ways around layered protections. This means older security methods may not be enough anymore.</p>
+      <p><strong>3. A Risky Transition Period.</strong> AI may eventually make cybersecurity stronger, but the shift could be unstable. During this time, attacks may improve faster than defenses, bugs may be found faster than they are fixed, and overall risk could temporarily increase.</p>
+
+      <h3>Conclusion</h3>
+      <p>Claude Mythos Preview gives a look at the future of cybersecurity, where AI can both break and protect complex systems. Its strengths include finding long-hidden vulnerabilities, creating advanced exploits, and working at a very large scale.</p>
+      <p>But its risks are just as serious: making cyberattacks easier, speeding up system exploitation, and putting more pressure on current defenses.</p>
+      <p>Anthropic's decision to limit its release shows an important truth: AI is becoming a powerful force in cybersecurity and many other tech-related things, and we need to adapt quickly to keep up.</p>
+    </div>
+
+    <script>
+      document.getElementById("darkToggle").addEventListener("click", () => {
+        document.body.classList.toggle("dark");
+        const btn = document.getElementById("darkToggle");
+        btn.textContent = document.body.classList.contains("dark") ? "Light Mode" : "Dark Mode";
+      });
+    </script>
+  </body>
+</html>
