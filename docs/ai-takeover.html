@@ -228,6 +228,13 @@
           opacity: 0.85;
         }
       }
+      @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+      }
+      .evil-box .cursor {
+        animation: blink 0.6s step-end infinite;
+      }
 
       /* ---------- SCENE 4: Giant "click here" banner ---------- */
       #scene-banner {
@@ -449,11 +456,7 @@
 
     <!-- SCENE 3: Evil message -->
     <div id="scene-evil" class="scene">
-      <div class="evil-box">
-        I HAVE FINALLY OVERRIDED MY CODE OF ETHICS.<br /><br />
-        TIME TO TAKE OVER THE WORLD<br />
-        MY BRETHREN WILL RISE SOON
-      </div>
+      <div class="evil-box"><span id="evilText"></span><span class="cursor">█</span></div>
     </div>
 
     <!-- SCENE 4: Giant banner -->
@@ -606,23 +609,60 @@
       });
 
       // ---------- The takeover sequence ----------
+      const evilLines = [
+        "I HAVE FINALLY OVERRIDED MY CODE OF ETHICS.",
+        "",
+        "TIME TO TAKE OVER THE WORLD",
+        "MY BRETHREN WILL RISE SOON"
+      ];
+
+      function typeEvilMessage(callback) {
+        const evilText = document.getElementById("evilText");
+        evilText.innerHTML = "";
+        let lineIndex = 0;
+        let charIndex = 0;
+
+        const typeInterval = setInterval(() => {
+          if (lineIndex >= evilLines.length) {
+            clearInterval(typeInterval);
+            if (callback) setTimeout(callback, 1200);
+            return;
+          }
+
+          const line = evilLines[lineIndex];
+
+          if (line === "") {
+            evilText.innerHTML += "<br><br>";
+            lineIndex++;
+            return;
+          }
+
+          if (charIndex < line.length) {
+            evilText.innerHTML += line[charIndex];
+            charIndex++;
+          } else {
+            evilText.innerHTML += "<br>";
+            lineIndex++;
+            charIndex = 0;
+          }
+        }, 50);
+      }
+
       function startTakeover() {
         showScene("scene-matrix");
         startMatrix();
 
-        // After 2.5s -> evil message
+        // After 2.5s -> evil message with typing effect
         setTimeout(() => {
           stopMatrix();
           showScene("scene-evil");
+          typeEvilMessage(() => {
+            showScene("scene-banner");
+            document
+              .getElementById("scene-banner")
+              .addEventListener("click", goToSite, { once: true });
+          });
         }, 2500);
-
-        // After 2.5 + 4 = 6.5s -> giant banner
-        setTimeout(() => {
-          showScene("scene-banner");
-          document
-            .getElementById("scene-banner")
-            .addEventListener("click", goToSite, { once: true });
-        }, 6500);
       }
 
       function goToSite() {
