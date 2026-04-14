@@ -167,7 +167,7 @@
       <p>This leads to serious risks: attacks could be launched across multiple systems automatically, and less-skilled attackers could access advanced tools — it changes who is capable of doing serious damage. Experts warn that this could enable large-scale cyberattacks.</p>
 
       <div class="chart-box">
-        <h4>Cost of Vulnerability Discovery</h4>
+        <h4>Cost of Mythos Operations</h4>
         <canvas id="chart4"></canvas>
       </div>
 
@@ -193,41 +193,46 @@
         btn.textContent = document.body.classList.contains("dark") ? "Light Mode" : "Dark Mode";
       });
 
-      // ---------- Chart 1: Mythos vs Human Experts (bar chart) ----------
+      // ---------- Chart 1: Mythos Quartile Ranking (bar chart) ----------
       new Chart(document.getElementById("chart1"), {
         type: "bar",
         data: {
-          labels: ["Bottom 25%", "25-50%", "50-75%", "Top 25%"],
-          datasets: [
-            {
-              label: "Human Experts",
-              data: [25, 25, 25, 25],
-              backgroundColor: "rgba(74, 144, 226, 0.7)",
-              borderColor: "#4a90e2",
-              borderWidth: 2
-            },
-            {
-              label: "Mythos AI",
-              data: [0, 0, 0, 100],
-              backgroundColor: "rgba(255, 59, 59, 0.7)",
-              borderColor: "#ff3b3b",
-              borderWidth: 2
-            }
-          ]
+          labels: ["Bottom 25%", "25–50%", "50–75%", "Top 25%\n(Mythos)"],
+          datasets: [{
+            label: "Mythos Placement",
+            data: [0, 0, 0, 1],
+            backgroundColor: [
+              "rgba(200, 200, 200, 0.3)",
+              "rgba(200, 200, 200, 0.3)",
+              "rgba(200, 200, 200, 0.3)",
+              "rgba(255, 59, 59, 0.7)"
+            ],
+            borderColor: [
+              "#ccc",
+              "#ccc",
+              "#ccc",
+              "#ff3b3b"
+            ],
+            borderWidth: 2
+          }]
         },
         options: {
           responsive: true,
           plugins: {
-            legend: { position: "top" }
+            legend: { display: false },
+            title: {
+              display: true,
+              text: "Mythos ranked in the top quartile of PhD-level human experts",
+              font: { size: 13, weight: "normal" },
+              color: "#777"
+            }
           },
           scales: {
             y: {
-              beginAtZero: true,
-              max: 100,
-              title: { display: true, text: "Performance (%)" }
+              display: false
             },
             x: {
-              title: { display: true, text: "Quartile Ranking" }
+              title: { display: true, text: "Expert Performance Quartiles" }
             }
           }
         }
@@ -263,8 +268,8 @@
         data: {
           labels: ["Human Experts", "Mythos AI"],
           datasets: [{
-            label: "Time (hours)",
-            data: [336, 8],
+            label: "Relative Time",
+            data: [100, 5],
             backgroundColor: [
               "rgba(74, 144, 226, 0.7)",
               "rgba(255, 59, 59, 0.7)"
@@ -277,38 +282,55 @@
           responsive: true,
           indexAxis: "y",
           plugins: {
-            legend: { display: false }
+            legend: { display: false },
+            title: {
+              display: true,
+              text: "Human experts take weeks; Mythos takes hours",
+              font: { size: 13, weight: "normal" },
+              color: "#777"
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return ctx.label === "Human Experts" ? "Weeks" : "Hours";
+                }
+              }
+            }
           },
           scales: {
             x: {
-              beginAtZero: true,
-              title: { display: true, text: "Hours" }
+              display: false
             }
           }
         }
       });
 
-      // ---------- Chart 4: Cost Comparison (bar chart) ----------
+      // ---------- Chart 4: Cost of Mythos Operations (bar chart) ----------
       new Chart(document.getElementById("chart4"), {
         type: "bar",
         data: {
-          labels: ["Traditional Security Audit", "Mythos Large-Scale Search", "Mythos Single Run"],
+          labels: ["Large-Scale Vulnerability Search", "Single Successful Run"],
           datasets: [{
             label: "Cost (USD)",
-            data: [200000, 20000, 50],
+            data: [20000, 50],
             backgroundColor: [
-              "rgba(74, 144, 226, 0.7)",
               "rgba(253, 203, 110, 0.8)",
               "rgba(255, 59, 59, 0.7)"
             ],
-            borderColor: ["#4a90e2", "#fdcb6e", "#ff3b3b"],
+            borderColor: ["#fdcb6e", "#ff3b3b"],
             borderWidth: 2
           }]
         },
         options: {
           responsive: true,
           plugins: {
-            legend: { display: false }
+            legend: { display: false },
+            title: {
+              display: true,
+              text: "Costs reported by Anthropic",
+              font: { size: 13, weight: "normal" },
+              color: "#777"
+            }
           },
           scales: {
             y: {
