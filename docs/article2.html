@@ -81,7 +81,29 @@
       }
       .article-page li { margin-bottom: 8px; }
       body.dark .article-page ul { color: #bbb; }
+      .chart-box {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      }
+      .chart-box h4 {
+        text-align: center;
+        margin-bottom: 12px;
+        color: #333;
+        font-size: 1rem;
+      }
+      body.dark .chart-box {
+        background: #16213e;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      }
+      body.dark .chart-box h4 { color: #e0e0e0; }
+      .chart-box canvas {
+        max-height: 300px;
+      }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body>
     <div class="top-bar">
@@ -104,6 +126,11 @@
         <li><strong>Biosecurity Red-Teaming:</strong> PhD-level biologists used the model to create end-to-end protocols for recovering dangerous viruses from synthetic DNA, finding that Mythos performed in the top quartile of human experts.</li>
       </ul>
 
+      <div class="chart-box">
+        <h4>Mythos vs. Human Experts in Biosecurity Tasks</h4>
+        <canvas id="chart1"></canvas>
+      </div>
+
       <h3>Memory Safety Bugs</h3>
       <p>A large part of Mythos's findings involves memory safety bugs, especially in programs written in C and C++. These bugs are dangerous because:</p>
       <ul>
@@ -119,15 +146,30 @@
       <p>Beyond this example, Mythos has discovered thousands of serious security vulnerabilities, many previously unknown "zero-day" bugs, and problems in both open-source and private software.</p>
       <p>Human reviewers confirmed the system's accuracy: 89% exact agreement on severity ratings and 98% within one severity level.</p>
 
+      <div class="chart-box">
+        <h4>Human Reviewer Agreement with Mythos Severity Ratings</h4>
+        <canvas id="chart2"></canvas>
+      </div>
+
       <h3>From Bugs to Exploits: A Dangerous Leap</h3>
       <p>Finding vulnerabilities is only part of the issue. What makes Mythos more powerful and concerning is that it can turn bugs into working exploits (make full use of and derive benefit from a resource).</p>
       <p>Anthropic reports that Mythos creates exploits in hours that can take experts weeks, combines multiple vulnerabilities into complex attacks, and uses techniques such as Return-Oriented Programming (ROP), heap spraying, and privilege escalation chains.</p>
       <p>Together, these flaws allowed full system control. This kind of step-by-step problem solving makes Mythos feel less like a tool and more like an autonomous attacker.</p>
 
+      <div class="chart-box">
+        <h4>Time to Create an Exploit</h4>
+        <canvas id="chart3"></canvas>
+      </div>
+
       <h3>Scaling the Threat: AI Changes Cybersecurity Economics</h3>
       <p>In the past, finding and exploiting bugs required deep technical knowledge, a lot of time, and trial-and-error. Mythos changes this completely.</p>
       <p>According to Anthropic: large-scale vulnerability searches can cost under $20,000, individual successful runs may cost under $50, and exploit development is now faster.</p>
       <p>This leads to serious risks: attacks could be launched across multiple systems automatically, and less-skilled attackers could access advanced tools — it changes who is capable of doing serious damage. Experts warn that this could enable large-scale cyberattacks.</p>
+
+      <div class="chart-box">
+        <h4>Cost of Vulnerability Discovery</h4>
+        <canvas id="chart4"></canvas>
+      </div>
 
       <h3>Why It Isn't Public</h3>
       <p>Anthropic chose not to release Mythos publicly because it is too powerful. Main concerns include fast creation of exploit code, possible misuse by bad actors, and national security risks.</p>
@@ -149,6 +191,135 @@
         document.body.classList.toggle("dark");
         const btn = document.getElementById("darkToggle");
         btn.textContent = document.body.classList.contains("dark") ? "Light Mode" : "Dark Mode";
+      });
+
+      // ---------- Chart 1: Mythos vs Human Experts (bar chart) ----------
+      new Chart(document.getElementById("chart1"), {
+        type: "bar",
+        data: {
+          labels: ["Bottom 25%", "25-50%", "50-75%", "Top 25%"],
+          datasets: [
+            {
+              label: "Human Experts",
+              data: [25, 25, 25, 25],
+              backgroundColor: "rgba(74, 144, 226, 0.7)",
+              borderColor: "#4a90e2",
+              borderWidth: 2
+            },
+            {
+              label: "Mythos AI",
+              data: [0, 0, 0, 100],
+              backgroundColor: "rgba(255, 59, 59, 0.7)",
+              borderColor: "#ff3b3b",
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "top" }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              title: { display: true, text: "Performance (%)" }
+            },
+            x: {
+              title: { display: true, text: "Quartile Ranking" }
+            }
+          }
+        }
+      });
+
+      // ---------- Chart 2: Severity Rating Accuracy (pie chart) ----------
+      new Chart(document.getElementById("chart2"), {
+        type: "pie",
+        data: {
+          labels: ["Exact Match (89%)", "Off by One Level (9%)", "Disagreement (2%)"],
+          datasets: [{
+            data: [89, 9, 2],
+            backgroundColor: [
+              "rgba(0, 184, 148, 0.8)",
+              "rgba(253, 203, 110, 0.8)",
+              "rgba(255, 59, 59, 0.6)"
+            ],
+            borderColor: ["#00b894", "#fdcb6e", "#ff3b3b"],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" }
+          }
+        }
+      });
+
+      // ---------- Chart 3: Exploit Creation Time (bar chart) ----------
+      new Chart(document.getElementById("chart3"), {
+        type: "bar",
+        data: {
+          labels: ["Human Experts", "Mythos AI"],
+          datasets: [{
+            label: "Time (hours)",
+            data: [336, 8],
+            backgroundColor: [
+              "rgba(74, 144, 226, 0.7)",
+              "rgba(255, 59, 59, 0.7)"
+            ],
+            borderColor: ["#4a90e2", "#ff3b3b"],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          indexAxis: "y",
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              title: { display: true, text: "Hours" }
+            }
+          }
+        }
+      });
+
+      // ---------- Chart 4: Cost Comparison (bar chart) ----------
+      new Chart(document.getElementById("chart4"), {
+        type: "bar",
+        data: {
+          labels: ["Traditional Security Audit", "Mythos Large-Scale Search", "Mythos Single Run"],
+          datasets: [{
+            label: "Cost (USD)",
+            data: [200000, 20000, 50],
+            backgroundColor: [
+              "rgba(74, 144, 226, 0.7)",
+              "rgba(253, 203, 110, 0.8)",
+              "rgba(255, 59, 59, 0.7)"
+            ],
+            borderColor: ["#4a90e2", "#fdcb6e", "#ff3b3b"],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: "Cost (USD)" },
+              ticks: {
+                callback: function(value) { return "$" + value.toLocaleString(); }
+              }
+            }
+          }
+        }
       });
     </script>
   </body>
