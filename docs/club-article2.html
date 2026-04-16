@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Article 2 - The AI Club</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A4%96%3C/text%3E%3C/svg%3E">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #f7f7f7;
+        color: #333;
+      }
+      body.dark {
+        background: #1a1a2e;
+        color: #e0e0e0;
+      }
+      .top-bar {
+        background: white;
+        padding: 16px 24px;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      body.dark .top-bar {
+        background: #16213e;
+        border-bottom-color: #2a2a4a;
+      }
+      .back-btn {
+        text-decoration: none;
+        color: #4a90e2;
+        font-weight: 600;
+        font-size: 1rem;
+      }
+      .back-btn:hover { text-decoration: underline; }
+      .dark-toggle {
+        background: none;
+        border: 2px solid #ccc;
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        color: #555;
+      }
+      .dark-toggle:hover { border-color: #888; color: #222; }
+      body.dark .dark-toggle { border-color: #555; color: #bbb; }
+      body.dark .dark-toggle:hover { border-color: #999; color: #eee; }
+      .article-page {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 24px 60px;
+      }
+      .article-page h1 {
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 900;
+        margin-bottom: 30px;
+        color: #222;
+      }
+      body.dark .article-page h1 { color: #e0e0e0; }
+      .article-page h3 {
+        margin-top: 24px;
+        margin-bottom: 10px;
+        font-size: 1.15rem;
+        color: #333;
+      }
+      body.dark .article-page h3 { color: #ccc; }
+      .article-page p {
+        line-height: 1.7;
+        margin-bottom: 14px;
+        color: #555;
+      }
+      body.dark .article-page p { color: #bbb; }
+      .article-page ul {
+        color: #555;
+        line-height: 1.7;
+        margin-bottom: 14px;
+        padding-left: 24px;
+      }
+      .article-page li { margin-bottom: 8px; }
+      body.dark .article-page ul { color: #bbb; }
+      .works-cited {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e0e0e0;
+        font-size: 0.85rem;
+        color: #777;
+      }
+      body.dark .works-cited { border-top-color: #2a2a4a; color: #888; }
+      .works-cited p {
+        margin-bottom: 6px;
+        text-indent: -1.5em;
+        padding-left: 1.5em;
+        color: #777;
+      }
+      body.dark .works-cited p { color: #888; }
+    </style>
+  </head>
+  <body>
+    <div class="top-bar">
+      <a href="ai-club.html" class="back-btn">&larr; Back to The AI Club</a>
+      <button class="dark-toggle" id="darkToggle">Dark Mode</button>
+    </div>
+    <div class="article-page">
+      <h1>Article 2 (Coming Soon)</h1>
+      <p>This article is coming soon. Check back later!</p>
+    </div>
+
+    <script>
+      document.getElementById("darkToggle").addEventListener("click", () => {
+        document.body.classList.toggle("dark");
+        const btn = document.getElementById("darkToggle");
+        btn.textContent = document.body.classList.contains("dark") ? "Light Mode" : "Dark Mode";
+      });
+    </script>
+  </body>
+</html>

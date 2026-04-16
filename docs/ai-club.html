@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The AI Club</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A4%96%3C/text%3E%3C/svg%3E">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #f7f7f7;
+        color: #333;
+      }
+
+      /* ---------- Hero Banner ---------- */
+      .hero {
+        background: linear-gradient(135deg, #4a90e2, #357abd);
+        color: white;
+        padding: 60px 24px;
+        text-align: center;
+        position: relative;
+      }
+      .hero h1 {
+        font-size: 2.8rem;
+        font-weight: 900;
+        margin-bottom: 10px;
+      }
+      .hero p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+
+      /* ---------- Dark mode toggle ---------- */
+      .dark-toggle {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: none;
+        border: 2px solid rgba(255,255,255,0.5);
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        color: white;
+        transition: all 0.3s ease;
+      }
+      .dark-toggle:hover {
+        border-color: white;
+      }
+
+      /* ---------- Intro section ---------- */
+      .site-intro {
+        max-width: 800px;
+        margin: 24px auto;
+        padding: 0 20px;
+        color: #555;
+        line-height: 1.7;
+        text-align: center;
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .site-intro .intro-robot {
+        flex-shrink: 0;
+      }
+      @keyframes bob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+      }
+      .intro-robot svg {
+        animation: bob 2s ease-in-out infinite;
+      }
+
+      /* ---------- Articles grid ---------- */
+      .articles {
+        max-width: 1200px;
+        margin: 30px auto;
+        padding: 0 20px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+      }
+      @media (max-width: 768px) {
+        .articles {
+          grid-template-columns: 1fr;
+        }
+      }
+      .article {
+        background: white;
+        padding: 24px;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        align-self: start;
+      }
+      .article a {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+      }
+      .article h2 {
+        color: #222;
+        margin-bottom: 10px;
+        font-size: 1.3rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .article h2::after {
+        content: "\2192";
+        font-size: 1.2rem;
+        color: #4a90e2;
+      }
+      .article p {
+        color: #555;
+        line-height: 1.6;
+        margin-top: 8px;
+      }
+      .article:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: all 0.2s ease;
+      }
+
+      /* ---------- Decorative robots ---------- */
+      .deco-robot {
+        position: fixed;
+        z-index: 10;
+        pointer-events: none;
+        animation: bob 3s ease-in-out infinite;
+      }
+      .deco-robot.r1 { bottom: 20px; left: 20px; animation-delay: 0s; }
+      .deco-robot.r2 { bottom: 20px; right: 20px; animation-delay: 0.5s; }
+      .deco-robot.r3 { top: 90px; right: 30px; animation-delay: 1s; }
+      .deco-robot.r4 { top: 90px; left: 30px; animation-delay: 1.5s; }
+      @media (max-width: 768px) {
+        .deco-robot.r3, .deco-robot.r4 { display: none; }
+      }
+
+      /* ---------- Dark mode ---------- */
+      body.dark {
+        background: #1a1a2e;
+        color: #e0e0e0;
+      }
+      body.dark .hero {
+        background: linear-gradient(135deg, #16213e, #0f3460);
+      }
+      body.dark .site-intro {
+        color: #bbb;
+      }
+      body.dark .article {
+        background: #16213e;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+      body.dark .article h2 {
+        color: #e0e0e0;
+      }
+      body.dark .article h2:hover {
+        color: #6cb4ee;
+      }
+      body.dark .article p {
+        color: #bbb;
+      }
+      body.dark .dark-toggle {
+        border-color: #555;
+        color: #bbb;
+      }
+      body.dark .dark-toggle:hover {
+        border-color: #999;
+        color: #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Hero Banner -->
+    <div class="hero">
+      <h1>The AI Club</h1>
+      <p>Exploring the future of artificial intelligence</p>
+      <button class="dark-toggle" id="darkToggle">Dark Mode</button>
+    </div>
+
+    <!-- What is AI? Intro Section -->
+    <div class="site-intro">
+      <div class="intro-robot">
+        <svg width="80" height="90" viewBox="0 0 80 90">
+          <!-- antenna -->
+          <line x1="40" y1="8" x2="40" y2="20" stroke="#4a90e2" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="40" cy="5" r="5" fill="#ff6b6b"/>
+          <!-- head -->
+          <rect x="15" y="20" width="50" height="35" rx="10" fill="#4a90e2"/>
+          <!-- eyes -->
+          <circle cx="30" cy="37" r="6" fill="white"/>
+          <circle cx="50" cy="37" r="6" fill="white"/>
+          <circle cx="31" cy="37" r="3" fill="#333"/>
+          <circle cx="51" cy="37" r="3" fill="#333"/>
+          <!-- smile -->
+          <path d="M28 46 Q40 54 52 46" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <!-- body -->
+          <rect x="20" y="58" width="40" height="25" rx="6" fill="#357abd"/>
+          <!-- arms -->
+          <rect x="5" y="60" width="12" height="6" rx="3" fill="#4a90e2"/>
+          <rect x="63" y="60" width="12" height="6" rx="3" fill="#4a90e2"/>
+          <!-- heart -->
+          <text x="40" y="74" text-anchor="middle" font-size="12">&#10084;&#65039;</text>
+        </svg>
+      </div>
+      <!-- TODO: Replace this placeholder intro message with the user's custom message -->
+      <p>Welcome to The AI Club! This is your placeholder intro message. Send us your custom intro text and we'll put it right here.</p>
+    </div>
+
+    <!-- Articles -->
+    <div class="articles">
+      <div class="article">
+        <a href="club-article1.html">
+          <h2>Article 1 (Coming Soon)</h2>
+        </a>
+      </div>
+      <div class="article">
+        <a href="club-article2.html">
+          <h2>Article 2 (Coming Soon)</h2>
+        </a>
+      </div>
+    </div>
+
+    <!-- Decorative robots -->
+    <div class="deco-robot r1">
+      <svg width="50" height="55" viewBox="0 0 50 55">
+        <line x1="25" y1="5" x2="25" y2="12" stroke="#e8891c" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="25" cy="3" r="3" fill="#ffd93d"/>
+        <rect x="8" y="12" width="34" height="24" rx="7" fill="#e8891c"/>
+        <circle cx="18" cy="24" r="4" fill="white"/><circle cx="32" cy="24" r="4" fill="white"/>
+        <circle cx="19" cy="24" r="2" fill="#333"/><circle cx="33" cy="24" r="2" fill="#333"/>
+        <path d="M17 30 Q25 36 33 30" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <rect x="12" y="38" width="26" height="14" rx="4" fill="#d4770b"/>
+        <rect x="2" y="40" width="8" height="4" rx="2" fill="#e8891c"/>
+        <rect x="40" y="40" width="8" height="4" rx="2" fill="#e8891c"/>
+      </svg>
+    </div>
+    <div class="deco-robot r2">
+      <svg width="50" height="55" viewBox="0 0 50 55">
+        <line x1="25" y1="5" x2="25" y2="12" stroke="#6c5ce7" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="25" cy="3" r="3" fill="#a29bfe"/>
+        <rect x="8" y="12" width="34" height="24" rx="7" fill="#6c5ce7"/>
+        <circle cx="18" cy="24" r="4" fill="white"/><circle cx="32" cy="24" r="4" fill="white"/>
+        <circle cx="19" cy="24" r="2" fill="#333"/><circle cx="33" cy="24" r="2" fill="#333"/>
+        <path d="M17 30 Q25 36 33 30" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <rect x="12" y="38" width="26" height="14" rx="4" fill="#5541d9"/>
+        <rect x="2" y="40" width="8" height="4" rx="2" fill="#6c5ce7"/>
+        <rect x="40" y="40" width="8" height="4" rx="2" fill="#6c5ce7"/>
+      </svg>
+    </div>
+    <div class="deco-robot r3">
+      <svg width="45" height="50" viewBox="0 0 50 55">
+        <line x1="25" y1="5" x2="25" y2="12" stroke="#00b894" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="25" cy="3" r="3" fill="#55efc4"/>
+        <rect x="8" y="12" width="34" height="24" rx="7" fill="#00b894"/>
+        <circle cx="18" cy="24" r="4" fill="white"/><circle cx="32" cy="24" r="4" fill="white"/>
+        <circle cx="19" cy="24" r="2" fill="#333"/><circle cx="33" cy="24" r="2" fill="#333"/>
+        <path d="M17 30 Q25 36 33 30" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <rect x="12" y="38" width="26" height="14" rx="4" fill="#009b7d"/>
+        <rect x="2" y="40" width="8" height="4" rx="2" fill="#00b894"/>
+        <rect x="40" y="40" width="8" height="4" rx="2" fill="#00b894"/>
+      </svg>
+    </div>
+    <div class="deco-robot r4">
+      <svg width="45" height="50" viewBox="0 0 50 55">
+        <line x1="25" y1="5" x2="25" y2="12" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="25" cy="3" r="3" fill="#ff8e8e"/>
+        <rect x="8" y="12" width="34" height="24" rx="7" fill="#ff6b6b"/>
+        <circle cx="18" cy="24" r="4" fill="white"/><circle cx="32" cy="24" r="4" fill="white"/>
+        <circle cx="19" cy="24" r="2" fill="#333"/><circle cx="33" cy="24" r="2" fill="#333"/>
+        <path d="M17 30 Q25 36 33 30" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <rect x="12" y="38" width="26" height="14" rx="4" fill="#e05555"/>
+        <rect x="2" y="40" width="8" height="4" rx="2" fill="#ff6b6b"/>
+        <rect x="40" y="40" width="8" height="4" rx="2" fill="#ff6b6b"/>
+      </svg>
+    </div>
+
+    <script>
+      document.getElementById("darkToggle").addEventListener("click", () => {
+        document.body.classList.toggle("dark");
+        const btn = document.getElementById("darkToggle");
+        btn.textContent = document.body.classList.contains("dark") ? "Light Mode" : "Dark Mode";
+      });
+    </script>
+  </body>
+</html>
