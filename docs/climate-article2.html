@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Paradise Beach</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%9D%EF%B8%8F%3C/text%3E%3C/svg%3E">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* Glitch animations */
+      @keyframes shake {
+        0% { transform: translate(0, 0); }
+        25% { transform: translate(-4px, 2px); }
+        50% { transform: translate(3px, -3px); }
+        75% { transform: translate(-2px, 4px); }
+        100% { transform: translate(0, 0); }
+      }
+      @keyframes colorGlitch {
+        0% { filter: none; }
+        25% { filter: hue-rotate(180deg) saturate(2); }
+        50% { filter: invert(1); }
+        75% { filter: hue-rotate(90deg) brightness(1.5); }
+        100% { filter: none; }
+      }
+      @keyframes textGlitch {
+        0% { opacity: 1; transform: skewX(0deg); }
+        50% { opacity: 0.4; transform: skewX(3deg); }
+        100% { opacity: 1; transform: skewX(0deg); }
+      }
+      @keyframes scanline { 0% { top: -10%; } 100% { top: 110%; } }
+      @keyframes flicker { from { opacity: 1; } to { opacity: 0.85; } }
+      @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+      @keyframes wave {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+      @keyframes drift {
+        from { transform: translateX(-10px); }
+        to { transform: translateX(10px); }
+      }
+
+      #scene-resort.glitching {
+        animation: shake 0.15s infinite, colorGlitch 0.4s infinite !important;
+      }
+      #scene-resort.glitching * {
+        animation: textGlitch 0.3s infinite !important;
+      }
+      .glitch-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+      }
+      .glitch-overlay .scanline {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: rgba(46, 134, 222, 0.5);
+        animation: scanline 0.6s linear infinite;
+      }
+      .glitch-overlay .static {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          rgba(0, 0, 0, 0.04) 0px,
+          rgba(0, 0, 0, 0.04) 1px,
+          transparent 1px,
+          transparent 2px
+        );
+        animation: textGlitch 0.2s infinite;
+      }
+
+      .scene { position: fixed; inset: 0; display: none; }
+      .scene.active { display: flex; }
+
+      /* SCENE 1: Tropical resort */
+      #scene-resort {
+        background: linear-gradient(180deg, #ffd89b 0%, #ffb88c 30%, #56ccf2 60%, #2f80ed 100%);
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+      }
+      #scene-resort::before {
+        content: "🌴";
+        position: absolute;
+        bottom: 10%;
+        left: 5%;
+        font-size: 8rem;
+        animation: drift 4s ease-in-out infinite alternate;
+      }
+      #scene-resort::after {
+        content: "🌴";
+        position: absolute;
+        bottom: 15%;
+        right: 5%;
+        font-size: 6rem;
+        animation: drift 5s ease-in-out infinite alternate-reverse;
+      }
+      .resort-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 24px;
+        padding: 40px;
+        max-width: 540px;
+        width: 100%;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        text-align: center;
+        position: relative;
+        z-index: 2;
+      }
+      .resort-card .label {
+        color: #f39c12;
+        font-size: 0.85rem;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+      .resort-card h1 {
+        color: #2f80ed;
+        font-size: 2.4rem;
+        margin-bottom: 16px;
+      }
+      .resort-card .palm {
+        font-size: 5rem;
+        animation: wave 3s ease-in-out infinite;
+        display: inline-block;
+        margin-bottom: 10px;
+      }
+      .resort-card .tagline {
+        color: #555;
+        font-size: 1.1rem;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+      .resort-card .features {
+        display: flex;
+        justify-content: space-around;
+        margin: 24px 0;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+      .resort-card .feature {
+        font-size: 0.9rem;
+        color: #666;
+      }
+      .resort-card .feature span {
+        font-size: 1.8rem;
+        display: block;
+        margin-bottom: 4px;
+      }
+      .resort-card .price {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #27ae60;
+        margin: 16px 0;
+      }
+      .resort-card .book-btn {
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        color: white;
+        border: none;
+        padding: 16px 40px;
+        border-radius: 30px;
+        font-size: 1.1rem;
+        cursor: pointer;
+        font-weight: 700;
+        box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4);
+      }
+      .resort-card .book-btn:hover { transform: scale(1.05); }
+
+      /* SCENE 2: Water rain */
+      #scene-matrix { background: #001a33; }
+      #matrixCanvas { width: 100%; height: 100%; display: block; }
+
+      /* SCENE 3: Warning */
+      #scene-warning {
+        background: #001a33;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      #scene-warning .warning-box {
+        color: #56ccf2;
+        font-family: "Courier New", monospace;
+        font-size: clamp(1.2rem, 4vw, 2.4rem);
+        text-align: center;
+        max-width: 900px;
+        line-height: 1.5;
+        text-shadow: 0 0 12px #56ccf2;
+        animation: flicker 0.15s infinite alternate;
+      }
+      .warning-box .cursor { animation: blink 0.6s step-end infinite; }
+
+      /* SCENE 4: Banner */
+      #scene-banner {
+        background: #001a33;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 20px;
+      }
+      #scene-banner h1 {
+        color: white;
+        font-size: clamp(2rem, 7vw, 4.5rem);
+        text-align: center;
+        line-height: 1.2;
+        font-weight: 900;
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+      #scene-banner h1 span { color: #56ccf2; text-decoration: underline; }
+
+      /* SCENE 5: Black */
+      #scene-black { background: black; }
+
+      /* SCENE 6: The truth */
+      #scene-truth {
+        background: #f7f7f7;
+        flex-direction: column;
+        overflow-y: auto;
+        display: none;
+      }
+      #scene-truth.active { display: block; }
+      #scene-truth .article-header {
+        background: linear-gradient(135deg, #2c3e50, #2980b9);
+        color: white;
+        padding: 40px 20px;
+        text-align: center;
+      }
+      #scene-truth .article-header h1 {
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        margin-bottom: 10px;
+      }
+      #scene-truth .body {
+        max-width: 750px;
+        margin: 30px auto;
+        padding: 0 20px 60px;
+        line-height: 1.8;
+        color: #333;
+      }
+      #scene-truth .body h2 {
+        margin-top: 30px;
+        color: #2980b9;
+        font-size: 1.4rem;
+      }
+      #scene-truth .body p { margin-top: 14px; }
+      #scene-truth .stat {
+        display: inline-block;
+        background: #e3f0fa;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        color: #2980b9;
+      }
+      #scene-truth .quote {
+        margin: 24px 0;
+        padding: 18px 24px;
+        background: white;
+        border-left: 4px solid #2980b9;
+        border-radius: 8px;
+        font-style: italic;
+        color: #555;
+      }
+      #scene-truth .actions {
+        margin-top: 40px;
+        padding: 24px;
+        background: #e8f8ee;
+        border-radius: 12px;
+      }
+      #scene-truth .actions h3 { color: #27ae60; margin-bottom: 12px; }
+      #scene-truth .actions ul { padding-left: 20px; }
+      #scene-truth .actions li { margin: 8px 0; }
+      #scene-truth .nav-back {
+        display: inline-block;
+        margin-top: 30px;
+        background: #27ae60;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- SCENE 1: Resort ad -->
+    <div id="scene-resort" class="scene active">
+      <div class="resort-card">
+        <div class="label">Travel Deals</div>
+        <h1>Welcome to Paradise Beach</h1>
+        <div class="palm">🏝️</div>
+        <p class="tagline">Crystal blue waters, white sand, and sunshine year-round. Your perfect escape awaits!</p>
+        <div class="features">
+          <div class="feature"><span>🌴</span>Tropical views</div>
+          <div class="feature"><span>🏖️</span>Pristine beaches</div>
+          <div class="feature"><span>🐠</span>Coral reefs</div>
+        </div>
+        <div class="price">From $899 / week</div>
+        <button class="book-btn" id="bookBtn">Book Your Trip ✨</button>
+      </div>
+    </div>
+
+    <!-- SCENE 2: Water rain -->
+    <div id="scene-matrix" class="scene">
+      <canvas id="matrixCanvas"></canvas>
+    </div>
+
+    <!-- SCENE 3: Warning -->
+    <div id="scene-warning" class="scene">
+      <div class="warning-box"><span id="warningText"></span><span class="cursor">█</span></div>
+    </div>
+
+    <!-- SCENE 4: Banner -->
+    <div id="scene-banner" class="scene">
+      <h1>CLICK HERE TO SEE <span>WHAT REMAINS</span></h1>
+    </div>
+
+    <!-- SCENE 5: Black -->
+    <div id="scene-black" class="scene"></div>
+
+    <!-- SCENE 6: Truth -->
+    <div id="scene-truth" class="scene">
+      <div class="article-header">
+        <h1>🌊 Paradise Lost: The Sinking Coastlines</h1>
+        <p>The vacation brochures don't show this</p>
+      </div>
+      <div class="body">
+        <p>Beach resort ads sell us a fantasy of endless paradise. But the world's most beautiful coastlines are quietly disappearing — and the people who call them home are losing everything.</p>
+
+        <h2>The Ocean Is Rising</h2>
+        <p>Global sea levels have risen about <span class="stat">21–24 cm</span> since 1880, and the rate is accelerating. Scientists project another <span class="stat">30 to 100 cm</span> of rise by 2100, depending on how much we cut emissions.</p>
+        <p>It doesn't sound like much. But just half a meter is enough to displace entire island nations and flood massive cities like Miami, Jakarta, Mumbai, and Venice during regular high tides.</p>
+
+        <div class="quote">
+          "We are not drowning. We are fighting." — Pacific Climate Warriors, Tuvalu
+        </div>
+
+        <h2>Already Disappearing</h2>
+        <p>🏝️ <strong>Tuvalu and the Maldives</strong> — entire countries that may be uninhabitable within decades. Their citizens are becoming the world's first "climate refugees."</p>
+        <p>🐠 <strong>Coral reefs</strong> — the Great Barrier Reef has lost over half its coral since 1995 due to ocean warming and acidification.</p>
+        <p>🏖️ <strong>Beaches</strong> — many of the world's beaches could shrink to a fraction of their size or vanish entirely by the end of the century.</p>
+        <p>🏙️ <strong>Coastal cities</strong> — Jakarta, Indonesia, is sinking so fast that the country is moving its capital. New Orleans, Bangkok, and parts of Shanghai face the same fate.</p>
+
+        <h2>What's Driving It</h2>
+        <p>As the Earth warms, two things happen: glaciers and ice sheets melt, adding water to the oceans; and warmer water expands, taking up more space. Both come from the same source — greenhouse gases trapping heat in our atmosphere.</p>
+
+        <div class="actions">
+          <h3>🌱 What We Can Still Save</h3>
+          <p>Every fraction of a degree we prevent saves coastlines, lives, and species:</p>
+          <ul>
+            <li>🌡️ Support climate-friendly policies and leaders</li>
+            <li>✈️ Travel less by plane, or offset flights when you must fly</li>
+            <li>🥗 Eat more plant-based meals — agriculture is a huge emitter</li>
+            <li>💧 Protect oceans by reducing plastic and supporting marine reserves</li>
+            <li>🏠 Use less energy at home — switch to LEDs, insulate, unplug</li>
+            <li>📣 Share what you learn — silence is the biggest enemy of change</li>
+          </ul>
+        </div>
+
+        <p style="margin-top: 30px;">Paradise isn't lost yet. The coastlines, reefs, and communities can still be saved — but only if we act now, together.</p>
+
+        <a href="climate-articles.html" class="nav-back">← Back to Articles</a>
+      </div>
+    </div>
+
+    <script>
+      function showScene(id) {
+        document.querySelectorAll(".scene").forEach((s) => s.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+      }
+
+      if (window.location.hash === "#truth") showScene("scene-truth");
+
+      // ---------- Book button triggers takeover ----------
+      document.getElementById("bookBtn").addEventListener("click", () => {
+        const card = document.querySelector(".resort-card");
+        const tagline = card.querySelector(".tagline");
+        const price = card.querySelector(".price");
+
+        const scrambleChars = "█▓▒░~≈∽≋⋍CO2";
+        let count = 0;
+        const interval = setInterval(() => {
+          let scrambled = "";
+          for (let i = 0; i < 40; i++) {
+            scrambled += scrambleChars[Math.floor(Math.random() * scrambleChars.length)];
+          }
+          tagline.textContent = scrambled;
+          price.textContent = "SEA LEVEL +" + (Math.random() * 100).toFixed(1) + "cm";
+          count++;
+          if (count > 12) {
+            clearInterval(interval);
+            tagline.textContent = "WARNING: COASTLINE COMPROMISED";
+            tagline.style.color = "#2980b9";
+            price.textContent = "PARADISE NOT FOUND";
+            price.style.color = "#e74c3c";
+          }
+        }, 100);
+
+        playGlitchSound();
+
+        setTimeout(() => {
+          const scene = document.getElementById("scene-resort");
+          scene.classList.add("glitching");
+          const overlay = document.createElement("div");
+          overlay.className = "glitch-overlay";
+          overlay.innerHTML = '<div class="scanline"></div><div class="static"></div>';
+          document.body.appendChild(overlay);
+        }, 500);
+
+        setTimeout(() => {
+          const scene = document.getElementById("scene-resort");
+          scene.style.background = "black";
+          setTimeout(() => (scene.style.background = ""), 100);
+          setTimeout(() => (scene.style.background = "black"), 250);
+          setTimeout(() => (scene.style.background = ""), 350);
+        }, 1400);
+
+        setTimeout(() => {
+          const overlay = document.querySelector(".glitch-overlay");
+          if (overlay) overlay.remove();
+          startTakeover();
+        }, 2500);
+      });
+
+      const warningLines = [
+        "TRAVEL ADVISORY OVERRIDE",
+        "",
+        "DESTINATION: SUBMERGED",
+        "THE TRUTH RISES BELOW"
+      ];
+
+      function typeWarning(callback) {
+        const el = document.getElementById("warningText");
+        el.innerHTML = "";
+        let lineIdx = 0;
+        let charIdx = 0;
+        const interval = setInterval(() => {
+          if (lineIdx >= warningLines.length) {
+            clearInterval(interval);
+            if (callback) setTimeout(callback, 1200);
+            return;
+          }
+          const line = warningLines[lineIdx];
+          if (line === "") {
+            el.innerHTML += "<br><br>";
+            lineIdx++;
+            return;
+          }
+          if (charIdx < line.length) {
+            el.innerHTML += line[charIdx];
+            charIdx++;
+          } else {
+            el.innerHTML += "<br>";
+            lineIdx++;
+            charIdx = 0;
+          }
+        }, 50);
+      }
+
+      function startTakeover() {
+        showScene("scene-matrix");
+        startMatrix();
+        setTimeout(() => {
+          stopMatrix();
+          showScene("scene-warning");
+          typeWarning(() => {
+            showScene("scene-banner");
+            document.getElementById("scene-banner").addEventListener("click", goToTruth, { once: true });
+          });
+        }, 2500);
+      }
+
+      function goToTruth() {
+        showScene("scene-black");
+        setTimeout(() => showScene("scene-truth"), 900);
+      }
+
+      function playGlitchSound() {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const duration = 2.5;
+        const sampleRate = audioCtx.sampleRate;
+        const buffer = audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          const progress = i / data.length;
+          const volume = 0.1 + progress * 0.25;
+          data[i] = (Math.random() * 2 - 1) * volume;
+          if (Math.random() < 0.001) {
+            for (let j = 0; j < 200 && i + j < data.length; j++) {
+              data[i + j] = (Math.random() * 2 - 1) * 0.6;
+            }
+          }
+        }
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start();
+        source.onended = () => audioCtx.close();
+      }
+
+      // Water-themed rain
+      const canvas = document.getElementById("matrixCanvas");
+      const ctx = canvas.getContext("2d");
+      let matrixInterval = null;
+      let drops = [];
+      const chars = "🌊💧≈~∽⋍".split("");
+      const fontSize = 20;
+
+      function startMatrix() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const columns = Math.floor(canvas.width / fontSize);
+        drops = Array(columns).fill(1);
+        matrixInterval = setInterval(() => {
+          ctx.fillStyle = "rgba(0, 26, 51, 0.1)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.font = fontSize + "px monospace";
+          for (let i = 0; i < drops.length; i++) {
+            const ch = chars[Math.floor(Math.random() * chars.length)];
+            ctx.fillStyle = Math.random() < 0.3 ? "#56ccf2" : "#2980b9";
+            ctx.fillText(ch, i * fontSize, drops[i] * fontSize);
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+              drops[i] = 0;
+            }
+            drops[i]++;
+          }
+        }, 50);
+      }
+
+      function stopMatrix() {
+        if (matrixInterval) {
+          clearInterval(matrixInterval);
+          matrixInterval = null;
+        }
+      }
+    </script>
+  </body>
+</html>
