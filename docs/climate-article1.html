@@ -3,239 +3,44 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tomorrow's Forecast</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%A4%EF%B8%8F%3C/text%3E%3C/svg%3E">
+    <title>The Real Forecast: A Climate Emergency</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%A1%EF%B8%8F%3C/text%3E%3C/svg%3E">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
         font-family: "Segoe UI", system-ui, sans-serif;
-        height: 100vh;
-        overflow: hidden;
-      }
-
-      /* ---------- Glitch keyframes ---------- */
-      @keyframes shake {
-        0% { transform: translate(0, 0); }
-        10% { transform: translate(-4px, 2px); }
-        20% { transform: translate(3px, -3px); }
-        30% { transform: translate(-2px, 4px); }
-        40% { transform: translate(4px, -1px); }
-        50% { transform: translate(-3px, -3px); }
-        60% { transform: translate(2px, 4px); }
-        70% { transform: translate(-4px, -2px); }
-        80% { transform: translate(3px, 3px); }
-        90% { transform: translate(-1px, -4px); }
-        100% { transform: translate(0, 0); }
-      }
-      @keyframes colorGlitch {
-        0% { filter: none; }
-        20% { filter: hue-rotate(90deg) saturate(2); }
-        40% { filter: invert(1); }
-        50% { filter: none; }
-        60% { filter: hue-rotate(180deg) brightness(1.5); }
-        80% { filter: invert(1) hue-rotate(45deg); }
-        100% { filter: none; }
-      }
-      @keyframes textGlitch {
-        0% { opacity: 1; transform: skewX(0deg); }
-        20% { opacity: 0.8; transform: skewX(3deg); }
-        50% { opacity: 0.3; }
-        80% { opacity: 1; transform: skewX(0deg); }
-        100% { opacity: 1; }
-      }
-      @keyframes scanline {
-        0% { top: -10%; }
-        100% { top: 110%; }
-      }
-      #scene-forecast.glitching {
-        animation: shake 0.15s infinite, colorGlitch 0.4s infinite !important;
-      }
-      #scene-forecast.glitching * {
-        animation: textGlitch 0.3s infinite !important;
-      }
-      .glitch-overlay {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        z-index: 9999;
-      }
-      .glitch-overlay .scanline {
-        position: absolute;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: rgba(255, 60, 60, 0.4);
-        animation: scanline 0.6s linear infinite;
-      }
-      .glitch-overlay .static {
-        position: absolute;
-        inset: 0;
-        background: repeating-linear-gradient(
-          0deg,
-          rgba(0, 0, 0, 0.03) 0px,
-          rgba(0, 0, 0, 0.03) 1px,
-          transparent 1px,
-          transparent 2px
-        );
-        animation: textGlitch 0.2s infinite;
-      }
-
-      /* ---------- Scenes ---------- */
-      .scene { position: fixed; inset: 0; display: none; }
-      .scene.active { display: flex; }
-
-      /* SCENE 1: Friendly forecast */
-      #scene-forecast {
-        background: linear-gradient(180deg, #87ceeb 0%, #a8d8ea 50%, #d4f1f9 100%);
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-      }
-      .forecast-card {
-        background: white;
-        border-radius: 24px;
-        padding: 40px;
-        max-width: 500px;
-        width: 100%;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-        text-align: center;
-      }
-      .forecast-card .station {
-        color: #888;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        margin-bottom: 8px;
-      }
-      .forecast-card h1 {
-        color: #2f80ed;
-        font-size: 2rem;
-        margin-bottom: 30px;
-      }
-      .forecast-card .sun {
-        font-size: 6rem;
-        animation: spin 20s linear infinite;
-        display: inline-block;
-      }
-      @keyframes spin { to { transform: rotate(360deg); } }
-      .forecast-card .temp {
-        font-size: 4rem;
-        font-weight: 900;
-        color: #f39c12;
-        margin: 20px 0 10px;
-      }
-      .forecast-card .desc {
-        color: #555;
-        font-size: 1.1rem;
-        margin-bottom: 30px;
-      }
-      .forecast-card .details {
-        display: flex;
-        justify-content: space-around;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-        color: #666;
-      }
-      .forecast-card .next-btn {
-        margin-top: 30px;
-        background: #2f80ed;
-        color: white;
-        border: none;
-        padding: 14px 32px;
-        border-radius: 12px;
-        font-size: 1rem;
-        cursor: pointer;
-        font-weight: 600;
-      }
-      .forecast-card .next-btn:hover { background: #1e5fc0; }
-
-      /* SCENE 2: Matrix / data rain (red) */
-      #scene-matrix { background: black; }
-      #matrixCanvas { width: 100%; height: 100%; display: block; }
-
-      /* SCENE 3: Warning message */
-      #scene-warning {
-        background: black;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-      }
-      #scene-warning .warning-box {
-        color: #ff3b3b;
-        font-family: "Courier New", monospace;
-        font-size: clamp(1.2rem, 4vw, 2.4rem);
-        text-align: center;
-        max-width: 900px;
-        line-height: 1.5;
-        text-shadow: 0 0 12px #ff3b3b;
-        animation: flicker 0.15s infinite alternate;
-      }
-      @keyframes flicker { from { opacity: 1; } to { opacity: 0.85; } }
-      @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-      .warning-box .cursor { animation: blink 0.6s step-end infinite; }
-
-      /* SCENE 4: Click banner */
-      #scene-banner {
-        background: #1a0000;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        padding: 20px;
-      }
-      #scene-banner h1 {
-        color: white;
-        font-size: clamp(2rem, 7vw, 4.5rem);
-        text-align: center;
-        line-height: 1.2;
-        font-weight: 900;
-        animation: pulse 1.2s ease-in-out infinite;
-      }
-      #scene-banner h1 span {
-        color: #ff3b3b;
-        text-decoration: underline;
-      }
-      @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
-
-      /* SCENE 5: Black */
-      #scene-black { background: black; }
-
-      /* SCENE 6: The truth article */
-      #scene-truth {
         background: #f7f7f7;
-        flex-direction: column;
-        overflow-y: auto;
-        display: none;
+        color: #333;
+        line-height: 1.7;
       }
-      #scene-truth.active { display: block; }
-      #scene-truth .article-header {
+      .article-header {
         background: linear-gradient(135deg, #c0392b, #e74c3c);
         color: white;
-        padding: 40px 20px;
+        padding: 60px 20px;
         text-align: center;
       }
-      #scene-truth .article-header h1 {
+      .article-header h1 {
         font-size: clamp(1.8rem, 4vw, 2.6rem);
         margin-bottom: 10px;
       }
-      #scene-truth .article-header p {
+      .article-header p {
         opacity: 0.9;
         font-size: 1rem;
       }
-      #scene-truth .body {
+      .body {
         max-width: 750px;
         margin: 30px auto;
         padding: 0 20px 60px;
-        line-height: 1.8;
-        color: #333;
       }
-      #scene-truth .body h2 {
-        margin-top: 30px;
+      .body h2 {
+        margin-top: 36px;
         color: #c0392b;
         font-size: 1.4rem;
       }
-      #scene-truth .body p { margin-top: 14px; }
-      #scene-truth .stat {
+      .body p {
+        margin-top: 14px;
+      }
+      .stat {
         display: inline-block;
         background: #ffeaea;
         padding: 4px 10px;
@@ -243,7 +48,7 @@
         font-weight: 700;
         color: #c0392b;
       }
-      #scene-truth .quote {
+      .quote {
         margin: 24px 0;
         padding: 18px 24px;
         background: white;
@@ -252,16 +57,23 @@
         font-style: italic;
         color: #555;
       }
-      #scene-truth .actions {
+      .actions {
         margin-top: 40px;
         padding: 24px;
         background: #e8f8ee;
         border-radius: 12px;
       }
-      #scene-truth .actions h3 { color: #27ae60; margin-bottom: 12px; }
-      #scene-truth .actions ul { padding-left: 20px; }
-      #scene-truth .actions li { margin: 8px 0; }
-      #scene-truth .nav-back {
+      .actions h3 {
+        color: #27ae60;
+        margin-bottom: 12px;
+      }
+      .actions ul {
+        padding-left: 20px;
+      }
+      .actions li {
+        margin: 8px 0;
+      }
+      .nav-back {
         display: inline-block;
         margin-top: 30px;
         background: #2f80ed;
@@ -270,265 +82,68 @@
         border-radius: 8px;
         text-decoration: none;
       }
+      .nav-back:hover {
+        background: #1e5fc0;
+      }
+      .sources {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid #ddd;
+        font-size: 0.85rem;
+        color: #888;
+      }
+      .sources a {
+        color: #888;
+        text-decoration: underline;
+      }
     </style>
   </head>
   <body>
-    <!-- SCENE 1: Friendly weather forecast -->
-    <div id="scene-forecast" class="scene active">
-      <div class="forecast-card">
-        <div class="station">Channel 7 Weather</div>
-        <h1>Tomorrow's Forecast</h1>
-        <div class="sun">☀️</div>
-        <div class="temp">72°F</div>
-        <div class="desc">Sunny with a light breeze. Perfect day for a picnic!</div>
-        <div class="details">
-          <div>💧 Humidity<br/><strong>45%</strong></div>
-          <div>🌬️ Wind<br/><strong>8 mph</strong></div>
-          <div>☔ Rain<br/><strong>0%</strong></div>
-        </div>
-        <button class="next-btn" id="forecastBtn">Get Full Week →</button>
+    <div class="article-header">
+      <h1>🌡️ The Real Forecast: A Climate Emergency</h1>
+      <p>How rising temperatures are reshaping our planet</p>
+    </div>
+    <div class="body">
+      <p>When we check the weather each morning, we see a friendly forecast: sunny, breezy, partly cloudy. But behind the day-to-day weather is a much bigger story — the long-term trend of our climate, and it's changing faster than at any point in human history.</p>
+
+      <h2>The Numbers Don't Lie</h2>
+      <p>Earth's average temperature has risen by about <span class="stat">1.1°C since 1880</span>, according to NASA and NOAA. That might sound small, but it's enough to melt glaciers, supercharge storms, and shift entire ecosystems.</p>
+      <p>The <span class="stat">10 hottest years on record</span> have all happened in roughly the last decade. Heatwaves that used to occur once a century now hit every few years.</p>
+
+      <div class="quote">
+        "We are on a highway to climate hell with our foot still on the accelerator." — UN Secretary-General António Guterres, COP27, 2022
+      </div>
+
+      <h2>What's Actually Happening</h2>
+      <p>🔥 <strong>Wildfires</strong> are burning longer and hotter — destroying forests, homes, and wildlife habitats from California to Australia to the Mediterranean.</p>
+      <p>🌊 <strong>Sea levels</strong> are rising, threatening coastal cities where hundreds of millions of people live.</p>
+      <p>🌾 <strong>Crops</strong> are failing in places that have grown food for thousands of years, leading to hunger and migration.</p>
+      <p>🐻‍❄️ <strong>Animals</strong> are losing their homes — polar bears, coral reefs, and countless species face extinction as their environments shift.</p>
+
+      <h2>The Cause Is Us</h2>
+      <p>Burning fossil fuels — oil, gas, and coal — releases carbon dioxide that traps heat in our atmosphere. Cutting down forests means fewer trees to absorb it. Industrial farming, shipping, and electricity generation all add to the problem.</p>
+      <p>The science here isn't controversial. More than 97% of climate scientists agree that human activity is the primary cause of recent warming.</p>
+
+      <div class="actions">
+        <h3>✨ But There's Hope</h3>
+        <p>Every action matters, no matter how small. Here's what you can do:</p>
+        <ul>
+          <li>🚲 Walk, bike, or use public transport when you can</li>
+          <li>🥗 Try eating less meat, especially beef</li>
+          <li>💡 Switch off lights and unplug electronics</li>
+          <li>♻️ Reduce, reuse, recycle (in that order)</li>
+          <li>🗳️ Vote for leaders who take climate action seriously</li>
+          <li>📢 Talk about it with friends and family</li>
+        </ul>
+      </div>
+
+      <p style="margin-top: 30px;">The forecast doesn't have to end this way. Our future is still being written — and you're holding the pen.</p>
+
+      <a href="climate-articles.html" class="nav-back">← Back to Articles</a>
+
+      <div class="sources">
+        <strong>Sources:</strong> NASA Global Climate Change (climate.nasa.gov), NOAA National Centers for Environmental Information, IPCC Sixth Assessment Report (2023), United Nations COP27 statements.
       </div>
     </div>
-
-    <!-- SCENE 2: Data rain -->
-    <div id="scene-matrix" class="scene">
-      <canvas id="matrixCanvas"></canvas>
-    </div>
-
-    <!-- SCENE 3: Warning -->
-    <div id="scene-warning" class="scene">
-      <div class="warning-box"><span id="warningText"></span><span class="cursor">█</span></div>
-    </div>
-
-    <!-- SCENE 4: Banner -->
-    <div id="scene-banner" class="scene">
-      <h1>CLICK HERE TO SEE <span>THE REAL FORECAST</span></h1>
-    </div>
-
-    <!-- SCENE 5: Black -->
-    <div id="scene-black" class="scene"></div>
-
-    <!-- SCENE 6: The truth -->
-    <div id="scene-truth" class="scene">
-      <div class="article-header">
-        <h1>🌡️ The Real Forecast: A Climate Emergency</h1>
-        <p>What sunny weather reports don't tell you</p>
-      </div>
-      <div class="body">
-        <p>That cheerful weather forecast feels comforting. But behind the smiling sun icon, our planet is sending us very different signals.</p>
-
-        <h2>The Numbers Don't Lie</h2>
-        <p>Earth's average temperature has risen by about <span class="stat">1.1°C since 1880</span>. That might sound small, but it's enough to melt glaciers, supercharge storms, and shift entire ecosystems.</p>
-        <p>The 10 hottest years on record have all happened in the last <span class="stat">15 years</span>. Heatwaves that used to occur once a century now hit every few years.</p>
-
-        <div class="quote">
-          "We are on a highway to climate hell with our foot still on the accelerator." — UN Secretary-General António Guterres
-        </div>
-
-        <h2>What's Actually Happening</h2>
-        <p>🔥 <strong>Wildfires</strong> are burning longer and hotter — destroying forests, homes, and wildlife habitats.</p>
-        <p>🌊 <strong>Sea levels</strong> are rising, threatening coastal cities where hundreds of millions of people live.</p>
-        <p>🌾 <strong>Crops</strong> are failing in places that have grown food for thousands of years, leading to hunger and migration.</p>
-        <p>🐻‍❄️ <strong>Animals</strong> are losing their homes — polar bears, coral reefs, and countless species face extinction.</p>
-
-        <h2>The Cause Is Us</h2>
-        <p>Burning fossil fuels — oil, gas, and coal — releases CO₂ that traps heat in our atmosphere. Cutting down forests means fewer trees to absorb it. Industrial farming, shipping, and electricity all add to the problem.</p>
-
-        <div class="actions">
-          <h3>✨ But There's Hope</h3>
-          <p>Every action matters, no matter how small. Here's what you can do:</p>
-          <ul>
-            <li>🚲 Walk, bike, or use public transport when you can</li>
-            <li>🥗 Try eating less meat, especially beef</li>
-            <li>💡 Switch off lights and unplug electronics</li>
-            <li>♻️ Reduce, reuse, recycle (in that order)</li>
-            <li>🗳️ Vote for leaders who take climate action seriously</li>
-            <li>📢 Talk about it with friends and family</li>
-          </ul>
-        </div>
-
-        <p style="margin-top: 30px;">The forecast doesn't have to end this way. Our future is still being written — and you're holding the pen.</p>
-
-        <a href="climate-articles.html" class="nav-back">← Back to Articles</a>
-      </div>
-    </div>
-
-    <script>
-      function showScene(id) {
-        document.querySelectorAll(".scene").forEach((s) => s.classList.remove("active"));
-        document.getElementById(id).classList.add("active");
-      }
-
-      // Skip to truth if URL has #truth
-      if (window.location.hash === "#truth") showScene("scene-truth");
-
-      // ---------- Forecast button triggers takeover ----------
-      document.getElementById("forecastBtn").addEventListener("click", () => {
-        const card = document.querySelector(".forecast-card");
-        const tempEl = card.querySelector(".temp");
-        const descEl = card.querySelector(".desc");
-
-        // Scramble temperature to scary values
-        const scrambleChars = "█▓▒░@#$%&!?/\\";
-        let count = 0;
-        const tempInterval = setInterval(() => {
-          tempEl.textContent = (Math.floor(Math.random() * 80) + 40) + "°F";
-          let scrambled = "";
-          for (let i = 0; i < 30; i++) {
-            scrambled += scrambleChars[Math.floor(Math.random() * scrambleChars.length)];
-          }
-          descEl.textContent = scrambled;
-          count++;
-          if (count > 10) {
-            clearInterval(tempInterval);
-            tempEl.textContent = "120°F";
-            tempEl.style.color = "#ff3b3b";
-            descEl.textContent = "ERROR: SYSTEM OVERRIDE";
-            descEl.style.color = "#ff3b3b";
-          }
-        }, 100);
-
-        playGlitchSound();
-
-        setTimeout(() => {
-          const scene = document.getElementById("scene-forecast");
-          scene.classList.add("glitching");
-          const overlay = document.createElement("div");
-          overlay.className = "glitch-overlay";
-          overlay.innerHTML = '<div class="scanline"></div><div class="static"></div>';
-          document.body.appendChild(overlay);
-        }, 500);
-
-        // Flash black
-        setTimeout(() => {
-          const scene = document.getElementById("scene-forecast");
-          scene.style.background = "black";
-          setTimeout(() => (scene.style.background = ""), 100);
-          setTimeout(() => (scene.style.background = "black"), 250);
-          setTimeout(() => (scene.style.background = ""), 350);
-        }, 1400);
-
-        // Transition to matrix
-        setTimeout(() => {
-          const overlay = document.querySelector(".glitch-overlay");
-          if (overlay) overlay.remove();
-          startTakeover();
-        }, 2500);
-      });
-
-      // ---------- Takeover sequence ----------
-      const warningLines = [
-        "EMERGENCY BROADCAST OVERRIDE",
-        "",
-        "GLOBAL TEMPERATURES RISING",
-        "THE TRUE FORECAST AWAITS"
-      ];
-
-      function typeWarning(callback) {
-        const el = document.getElementById("warningText");
-        el.innerHTML = "";
-        let lineIdx = 0;
-        let charIdx = 0;
-        const interval = setInterval(() => {
-          if (lineIdx >= warningLines.length) {
-            clearInterval(interval);
-            if (callback) setTimeout(callback, 1200);
-            return;
-          }
-          const line = warningLines[lineIdx];
-          if (line === "") {
-            el.innerHTML += "<br><br>";
-            lineIdx++;
-            return;
-          }
-          if (charIdx < line.length) {
-            el.innerHTML += line[charIdx];
-            charIdx++;
-          } else {
-            el.innerHTML += "<br>";
-            lineIdx++;
-            charIdx = 0;
-          }
-        }, 50);
-      }
-
-      function startTakeover() {
-        showScene("scene-matrix");
-        startMatrix();
-        setTimeout(() => {
-          stopMatrix();
-          showScene("scene-warning");
-          typeWarning(() => {
-            showScene("scene-banner");
-            document.getElementById("scene-banner").addEventListener("click", goToTruth, { once: true });
-          });
-        }, 2500);
-      }
-
-      function goToTruth() {
-        showScene("scene-black");
-        setTimeout(() => showScene("scene-truth"), 900);
-      }
-
-      // ---------- Glitch sound ----------
-      function playGlitchSound() {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const duration = 2.5;
-        const sampleRate = audioCtx.sampleRate;
-        const buffer = audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < data.length; i++) {
-          const progress = i / data.length;
-          const volume = 0.1 + progress * 0.25;
-          data[i] = (Math.random() * 2 - 1) * volume;
-          if (Math.random() < 0.001) {
-            for (let j = 0; j < 200 && i + j < data.length; j++) {
-              data[i + j] = (Math.random() * 2 - 1) * 0.6;
-            }
-          }
-        }
-        const source = audioCtx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioCtx.destination);
-        source.start();
-        source.onended = () => audioCtx.close();
-      }
-
-      // ---------- Matrix rain (climate themed) ----------
-      const canvas = document.getElementById("matrixCanvas");
-      const ctx = canvas.getContext("2d");
-      let matrixInterval = null;
-      let drops = [];
-      const chars = "🔥🌡️💧🌊⚠️CO2".split("");
-      const fontSize = 18;
-
-      function startMatrix() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        const columns = Math.floor(canvas.width / fontSize);
-        drops = Array(columns).fill(1);
-        matrixInterval = setInterval(() => {
-          ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.font = fontSize + "px monospace";
-          for (let i = 0; i < drops.length; i++) {
-            const ch = chars[Math.floor(Math.random() * chars.length)];
-            ctx.fillStyle = Math.random() < 0.3 ? "#ff3b3b" : "#ff8c42";
-            ctx.fillText(ch, i * fontSize, drops[i] * fontSize);
-            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-              drops[i] = 0;
-            }
-            drops[i]++;
-          }
-        }, 50);
-      }
-
-      function stopMatrix() {
-        if (matrixInterval) {
-          clearInterval(matrixInterval);
-          matrixInterval = null;
-        }
-      }
-    </script>
   </body>
 </html>
