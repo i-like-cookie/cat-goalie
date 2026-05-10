@@ -28,8 +28,6 @@ const server = http.createServer((req, res) => {
   const pages = {
     '/': 'index.html',
     '/index.html': 'index.html',
-    '/chat': 'chat.html',
-    '/chat.html': 'chat.html',
   };
 
   const file = pages[req.url];
