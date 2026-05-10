@@ -56,46 +56,103 @@
       }
       .game .desc { color: #555; margin-bottom: 20px; }
 
-      /* GAME 1: Recycling sorter */
-      .items-pool {
+      /* GAME 1: Save the Animals (poacher escape) */
+      .poacher-game {
+        background: linear-gradient(135deg, #2d5016, #4a7c2e) !important;
+        color: white;
+      }
+      .poacher-game h2 { color: #ffe066 !important; }
+      .poacher-game .desc { color: #e8e8e8 !important; }
+      .hud {
         display: flex;
+        justify-content: space-around;
         flex-wrap: wrap;
-        gap: 10px;
-        justify-content: center;
-        min-height: 80px;
-        padding: 16px;
-        background: #f7f7f7;
-        border-radius: 10px;
-        margin-bottom: 20px;
-      }
-      .item {
-        background: white;
-        border: 2px solid #ddd;
-        border-radius: 10px;
-        padding: 14px 18px;
-        cursor: grab;
-        font-size: 1.5rem;
-        user-select: none;
-        transition: transform 0.2s;
-      }
-      .item:hover { transform: scale(1.1); }
-      .item.dragging { opacity: 0.5; }
-      .bins { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
-      .bin {
-        min-height: 130px;
-        border: 3px dashed #aaa;
-        border-radius: 12px;
+        gap: 12px;
+        background: rgba(0,0,0,0.5);
         padding: 14px;
-        text-align: center;
-        transition: all 0.2s;
+        border-radius: 12px 12px 0 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: white;
       }
-      .bin.recycle { border-color: #27ae60; background: #e8f8ee; }
-      .bin.compost { border-color: #8b6f47; background: #f4ede0; }
-      .bin.trash { border-color: #777; background: #f0f0f0; }
-      .bin.over { transform: scale(1.05); }
-      .bin h3 { margin-bottom: 8px; font-size: 1rem; }
-      .bin .drop-area { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; min-height: 50px; }
-      #recycleScore { font-weight: bold; color: #27ae60; }
+      .hud span { color: #ffe066; }
+      #poacherCanvas {
+        display: block;
+        width: 100%;
+        background: #6ea84f;
+        border: 4px solid #1a3009;
+        border-top: none;
+        border-radius: 0 0 12px 12px;
+        max-width: 100%;
+        touch-action: none;
+      }
+      .game-help {
+        background: rgba(255,255,255,0.1);
+        margin-top: 16px;
+        padding: 16px;
+        border-radius: 10px;
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
+      .game-help strong { color: #ffe066; }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.85);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        border-radius: 12px;
+      }
+      .overlay.show { display: flex; }
+      .overlay-box {
+        background: white;
+        color: #222;
+        padding: 26px 32px;
+        border-radius: 16px;
+        text-align: center;
+        max-width: 380px;
+      }
+      .overlay-box h3 { font-size: 1.6rem; margin-bottom: 10px; color: #2d5016; }
+      .overlay-box p { margin-bottom: 18px; color: #555; }
+      .play-btn {
+        background: #27ae60;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 1.05rem;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .play-btn:hover { background: #1e8449; }
+      .canvas-wrap { position: relative; }
+      .controls-mobile { display: none; margin-top: 14px; text-align: center; }
+      .dpad {
+        display: inline-grid;
+        grid-template-columns: 56px 56px 56px;
+        grid-template-rows: 56px 56px 56px;
+        gap: 6px;
+      }
+      .dpad button {
+        background: rgba(0,0,0,0.5);
+        color: white;
+        border: 2px solid rgba(255,255,255,0.4);
+        border-radius: 10px;
+        font-size: 1.3rem;
+        cursor: pointer;
+        user-select: none;
+        touch-action: manipulation;
+      }
+      .dpad button:active { background: rgba(255,255,255,0.3); }
+      .dpad .up { grid-column: 2; grid-row: 1; }
+      .dpad .left { grid-column: 1; grid-row: 2; }
+      .dpad .right { grid-column: 3; grid-row: 2; }
+      .dpad .down { grid-column: 2; grid-row: 3; }
+      @media (max-width: 768px) {
+        .controls-mobile { display: block; }
+      }
 
       /* GAME 2: Quiz */
       .question { font-size: 1.1rem; margin-bottom: 16px; font-weight: 500; }
@@ -173,33 +230,40 @@
     </header>
 
     <div class="games">
-      <!-- GAME 1: Recycling Sorter -->
-      <div class="game">
-        <h2>♻️ Game 1: Recycling Sorter</h2>
-        <p class="desc">Drag each item into the correct bin. Score: <span id="recycleScore">0</span> / 8</p>
-        <div class="items-pool" id="itemsPool">
-          <div class="item" draggable="true" data-type="recycle">🥤</div>
-          <div class="item" draggable="true" data-type="compost">🍌</div>
-          <div class="item" draggable="true" data-type="trash">🚬</div>
-          <div class="item" draggable="true" data-type="recycle">📰</div>
-          <div class="item" draggable="true" data-type="compost">🍎</div>
-          <div class="item" draggable="true" data-type="recycle">🥫</div>
-          <div class="item" draggable="true" data-type="trash">💡</div>
-          <div class="item" draggable="true" data-type="compost">🥬</div>
+      <!-- GAME 1: Save the Animals (Poacher Escape) -->
+      <div class="game poacher-game">
+        <h2>🚁 Game 1: Save the Animals</h2>
+        <p class="desc">
+          Rescue endangered animals from poachers and escape in your helicopter!
+          Pick up animals one by one and drop them at the helipad before the poachers get them — or you.
+        </p>
+        <div class="hud">
+          <div>🦏 Saved: <span id="saved">0</span> / <span id="total">5</span></div>
+          <div>❤️ Lives: <span id="lives">3</span></div>
+          <div>⏱️ Time: <span id="time">0</span>s</div>
         </div>
-        <div class="bins">
-          <div class="bin recycle" data-accept="recycle">
-            <h3>♻️ Recycling</h3>
-            <div class="drop-area"></div>
+        <div class="canvas-wrap">
+          <canvas id="poacherCanvas" width="800" height="500"></canvas>
+          <div class="overlay show" id="poacherOverlay">
+            <div class="overlay-box">
+              <h3 id="overlayTitle">🌍 Save the Animals</h3>
+              <p id="overlayMsg">Help protect endangered species from poachers. Rescue them all and fly to safety!</p>
+              <button class="play-btn" id="playBtn">▶ Start Game</button>
+            </div>
           </div>
-          <div class="bin compost" data-accept="compost">
-            <h3>🌱 Compost</h3>
-            <div class="drop-area"></div>
+        </div>
+        <div class="controls-mobile">
+          <div class="dpad">
+            <button class="up" data-dir="up">▲</button>
+            <button class="left" data-dir="left">◀</button>
+            <button class="right" data-dir="right">▶</button>
+            <button class="down" data-dir="down">▼</button>
           </div>
-          <div class="bin trash" data-accept="trash">
-            <h3>🗑️ Trash</h3>
-            <div class="drop-area"></div>
-          </div>
+        </div>
+        <div class="game-help">
+          <strong>🎮 Controls:</strong> Arrow Keys or WASD (or touch buttons on mobile)<br>
+          <strong>🎯 Goal:</strong> Walk over an animal to pick it up → bring to the 🚁 helipad → save all 5 to win!<br>
+          <strong>⚠️ Warning:</strong> Don't let poachers touch you (lose a life) or reach the animals (gone forever).
         </div>
       </div>
 
@@ -245,50 +309,297 @@
     </div>
 
     <script>
-      // ---------- GAME 1: Recycling drag and drop ----------
-      let recycleScore = 0;
-      const items = document.querySelectorAll(".item");
-      const bins = document.querySelectorAll(".bin");
-      let draggedItem = null;
+      // ---------- GAME 1: Save the Animals (Poacher Escape) ----------
+      (function () {
+        const canvas = document.getElementById("poacherCanvas");
+        const ctx = canvas.getContext("2d");
+        const W = canvas.width;
+        const H = canvas.height;
 
-      items.forEach((item) => {
-        item.addEventListener("dragstart", (e) => {
-          draggedItem = item;
-          item.classList.add("dragging");
-        });
-        item.addEventListener("dragend", () => {
-          item.classList.remove("dragging");
-          draggedItem = null;
-        });
-      });
+        const TOTAL_ANIMALS = 5;
+        const ANIMAL_EMOJIS = ["🐘", "🦏", "🐅", "🦓", "🦍"];
 
-      bins.forEach((bin) => {
-        bin.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          bin.classList.add("over");
-        });
-        bin.addEventListener("dragleave", () => bin.classList.remove("over"));
-        bin.addEventListener("drop", (e) => {
-          e.preventDefault();
-          bin.classList.remove("over");
-          if (!draggedItem) return;
-          const correct = draggedItem.dataset.type === bin.dataset.accept;
-          if (correct) {
-            bin.querySelector(".drop-area").appendChild(draggedItem);
-            draggedItem.draggable = false;
-            draggedItem.style.cursor = "default";
-            recycleScore++;
-            document.getElementById("recycleScore").textContent = recycleScore;
-            if (recycleScore === 8) {
-              setTimeout(() => alert("🎉 Perfect! You sorted everything correctly!"), 200);
+        let player, helicopter, animals, poachers, trees;
+        let saved, lives, startTime, gameRunning, carrying;
+        let keys = {};
+
+        function rand(min, max) { return Math.random() * (max - min) + min; }
+        function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+        function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+        function spawnAwayFrom(x, y, minDist) {
+          let nx, ny, tries = 0;
+          do {
+            nx = rand(40, W - 40);
+            ny = rand(40, H - 40);
+            tries++;
+          } while (Math.hypot(nx - x, ny - y) < minDist && tries < 50);
+          return { x: nx, y: ny };
+        }
+
+        function initGame() {
+          player = { x: W / 2, y: H / 2, size: 28, speed: 3.4 };
+          helicopter = { x: 70, y: 70, size: 50 };
+          carrying = null;
+          saved = 0;
+          lives = 3;
+          startTime = Date.now();
+
+          trees = [];
+          for (let i = 0; i < 12; i++) {
+            trees.push({ x: rand(20, W - 20), y: rand(20, H - 20), size: rand(20, 35) });
+          }
+
+          animals = [];
+          for (let i = 0; i < TOTAL_ANIMALS; i++) {
+            const pos = spawnAwayFrom(helicopter.x, helicopter.y, 200);
+            animals.push({
+              x: pos.x,
+              y: pos.y,
+              size: 26,
+              emoji: ANIMAL_EMOJIS[i % ANIMAL_EMOJIS.length],
+              alive: true,
+              rescued: false,
+              wanderAngle: Math.random() * Math.PI * 2,
+              wanderTimer: 0,
+            });
+          }
+
+          poachers = [];
+          for (let i = 0; i < 3; i++) {
+            const pos = spawnAwayFrom(player.x, player.y, 200);
+            poachers.push({ x: pos.x, y: pos.y, size: 28, speed: 1.6 });
+          }
+
+          document.getElementById("total").textContent = TOTAL_ANIMALS;
+          updateHUD();
+        }
+
+        function updateHUD() {
+          document.getElementById("saved").textContent = saved;
+          document.getElementById("lives").textContent = lives;
+          document.getElementById("time").textContent =
+            Math.floor((Date.now() - startTime) / 1000);
+        }
+
+        function drawEmoji(emoji, x, y, size) {
+          ctx.font = size + "px serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(emoji, x, y);
+        }
+
+        function update() {
+          if (!gameRunning) return;
+
+          let dx = 0, dy = 0;
+          if (keys["ArrowUp"] || keys["w"] || keys["W"]) dy -= 1;
+          if (keys["ArrowDown"] || keys["s"] || keys["S"]) dy += 1;
+          if (keys["ArrowLeft"] || keys["a"] || keys["A"]) dx -= 1;
+          if (keys["ArrowRight"] || keys["d"] || keys["D"]) dx += 1;
+          if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
+          player.x = clamp(player.x + dx * player.speed, 20, W - 20);
+          player.y = clamp(player.y + dy * player.speed, 20, H - 20);
+
+          animals.forEach((a) => {
+            if (!a.alive || a.rescued) return;
+            a.wanderTimer--;
+            if (a.wanderTimer <= 0) {
+              a.wanderAngle = Math.random() * Math.PI * 2;
+              a.wanderTimer = rand(40, 120);
             }
-          } else {
-            // Wrong bin - shake the item
-            draggedItem.style.animation = "shake 0.3s";
-            setTimeout(() => (draggedItem.style.animation = ""), 300);
+            a.x = clamp(a.x + Math.cos(a.wanderAngle) * 0.6, 20, W - 20);
+            a.y = clamp(a.y + Math.sin(a.wanderAngle) * 0.6, 20, H - 20);
+          });
+
+          poachers.forEach((p) => {
+            let target = null;
+            let bestDist = Infinity;
+            if (carrying && Math.random() < 0.3) {
+              target = player;
+            } else {
+              animals.forEach((a) => {
+                if (a.alive && !a.rescued) {
+                  const d = dist(p, a);
+                  if (d < bestDist) { bestDist = d; target = a; }
+                }
+              });
+              if (!target) target = player;
+            }
+            if (target) {
+              const d = dist(p, target);
+              if (d > 0) {
+                p.x += ((target.x - p.x) / d) * p.speed;
+                p.y += ((target.y - p.y) / d) * p.speed;
+              }
+            }
+          });
+
+          animals.forEach((a) => {
+            if (!a.alive || a.rescued) return;
+            poachers.forEach((p) => {
+              if (dist(a, p) < a.size) a.alive = false;
+            });
+          });
+
+          if (!carrying) {
+            for (const a of animals) {
+              if (a.alive && !a.rescued && dist(player, a) < player.size) {
+                carrying = a;
+                break;
+              }
+            }
+          }
+
+          if (carrying) {
+            carrying.x = player.x;
+            carrying.y = player.y - 22;
+          }
+
+          if (carrying && dist(player, helicopter) < helicopter.size) {
+            carrying.rescued = true;
+            carrying = null;
+            saved++;
+          }
+
+          poachers.forEach((p) => {
+            if (dist(player, p) < player.size) {
+              lives--;
+              player.x = W / 2;
+              player.y = H / 2;
+              if (carrying) carrying = null;
+              if (lives <= 0) endGame(false, "💀 The poachers got you!");
+            }
+          });
+
+          const remaining = animals.filter((a) => a.alive && !a.rescued).length;
+          if (saved === TOTAL_ANIMALS && dist(player, helicopter) < helicopter.size) {
+            endGame(true, "🎉 You saved them all and escaped!");
+          }
+          if (remaining === 0 && saved < TOTAL_ANIMALS && !carrying) {
+            endGame(false, `😢 The poachers got too many. You only saved ${saved}.`);
+          }
+
+          updateHUD();
+        }
+
+        function draw() {
+          ctx.fillStyle = "#6ea84f";
+          ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = "#5e9742";
+          for (let i = 0; i < W; i += 40) {
+            for (let j = 0; j < H; j += 40) {
+              if ((i / 40 + j / 40) % 2 === 0) {
+                ctx.fillRect(i, j, 40, 40);
+              }
+            }
+          }
+
+          trees.forEach((t) => drawEmoji("🌳", t.x, t.y, t.size));
+
+          ctx.fillStyle = "#444";
+          ctx.beginPath();
+          ctx.arc(helicopter.x, helicopter.y, helicopter.size / 2 + 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#ffe066";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(helicopter.x, helicopter.y, helicopter.size / 2 + 4, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = "#ffe066";
+          ctx.font = "bold 18px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("H", helicopter.x, helicopter.y + 1);
+          drawEmoji("🚁", helicopter.x, helicopter.y - 30, 36);
+
+          animals.forEach((a) => {
+            if (a.rescued) return;
+            if (!a.alive) {
+              ctx.globalAlpha = 0.5;
+              drawEmoji("💀", a.x, a.y, 24);
+              ctx.globalAlpha = 1;
+              return;
+            }
+            drawEmoji(a.emoji, a.x, a.y, 32);
+          });
+
+          poachers.forEach((p) => {
+            ctx.fillStyle = "rgba(220,40,40,0.3)";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size + 4, 0, Math.PI * 2);
+            ctx.fill();
+            drawEmoji("🥷", p.x, p.y, 32);
+            drawEmoji("🔫", p.x + 14, p.y + 6, 16);
+          });
+
+          ctx.fillStyle = "rgba(40,120,220,0.25)";
+          ctx.beginPath();
+          ctx.arc(player.x, player.y, player.size + 4, 0, Math.PI * 2);
+          ctx.fill();
+          drawEmoji("🦸", player.x, player.y, 32);
+
+          if (carrying) {
+            drawEmoji(carrying.emoji, carrying.x, carrying.y, 26);
+          }
+
+          for (let i = 0; i < saved; i++) {
+            const angle = (i / TOTAL_ANIMALS) * Math.PI * 2;
+            const rx = helicopter.x + Math.cos(angle) * 38;
+            const ry = helicopter.y + Math.sin(angle) * 38;
+            drawEmoji(ANIMAL_EMOJIS[i], rx, ry, 18);
+          }
+        }
+
+        function loop() {
+          update();
+          draw();
+          if (gameRunning) requestAnimationFrame(loop);
+        }
+
+        function startGame() {
+          document.getElementById("poacherOverlay").classList.remove("show");
+          initGame();
+          gameRunning = true;
+          loop();
+        }
+
+        function endGame(won, message) {
+          gameRunning = false;
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          document.getElementById("overlayTitle").textContent = won ? "🏆 Victory!" : "Game Over";
+          document.getElementById("overlayMsg").innerHTML =
+            message + `<br><br>⏱️ Time: ${elapsed}s &nbsp; 🦏 Saved: ${saved} / ${TOTAL_ANIMALS}`;
+          document.getElementById("playBtn").textContent = "▶ Play Again";
+          document.getElementById("poacherOverlay").classList.add("show");
+        }
+
+        window.addEventListener("keydown", (e) => {
+          keys[e.key] = true;
+          if (gameRunning && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+            e.preventDefault();
           }
         });
-      });
+        window.addEventListener("keyup", (e) => { keys[e.key] = false; });
+
+        document.querySelectorAll(".dpad button").forEach((btn) => {
+          const dir = btn.dataset.dir;
+          const keyMap = { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" };
+          const press = (e) => { e.preventDefault(); keys[keyMap[dir]] = true; };
+          const release = (e) => { e.preventDefault(); keys[keyMap[dir]] = false; };
+          btn.addEventListener("touchstart", press);
+          btn.addEventListener("touchend", release);
+          btn.addEventListener("touchcancel", release);
+          btn.addEventListener("mousedown", press);
+          btn.addEventListener("mouseup", release);
+          btn.addEventListener("mouseleave", release);
+        });
+
+        document.getElementById("playBtn").addEventListener("click", startGame);
+
+        initGame();
+        draw();
+      })();
 
       // ---------- GAME 2: Quiz ----------
       const quizQuestions = [
@@ -389,7 +700,6 @@
         const fly = +document.getElementById("cFly").value || 0;
         const ac = +document.getElementById("cAc").value || 0;
 
-        // Rough CO2 estimates (kg per unit, weekly)
         const total = km * 0.21 + beef * 7 + fly * 90 + ac * 7 * 1.5;
         const rounded = Math.round(total);
 
