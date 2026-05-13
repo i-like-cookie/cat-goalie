@@ -234,8 +234,9 @@
       <div class="game poacher-game">
         <h2>🚁 Game 1: Save the Animals</h2>
         <p class="desc">
-          Rescue endangered animals from poachers and escape in your helicopter!
-          Pick up animals one by one and drop them at the helipad before the poachers get them — or you.
+          You're running through the jungle! Grab all 5 endangered animals,
+          dodge the poachers' bullets, and catch the helicopter to escape.
+          Subway-Surfers-style endless runner.
         </p>
         <div class="hud">
           <div>🦏 Saved: <span id="saved">0</span> / <span id="total">5</span></div>
@@ -261,9 +262,9 @@
           </div>
         </div>
         <div class="game-help">
-          <strong>🎮 Controls:</strong> Arrow Keys or WASD (or touch buttons on mobile)<br>
-          <strong>🎯 Goal:</strong> Walk over an animal to pick it up → bring to the 🚁 helipad → save all 5 to win!<br>
-          <strong>⚠️ Warning:</strong> Don't let poachers touch you (lose a life) or reach the animals (gone forever).
+          <strong>🎮 Controls:</strong> Left/Right (or A/D) to dodge. Up/Down for fine adjustment.<br>
+          <strong>🎯 Goal:</strong> Run into each animal to save it → save all 5 → the helicopter appears → run into it to escape!<br>
+          <strong>⚠️ Warning:</strong> Poachers shoot 🔴 bullets. Each hit costs a life. You auto-run forward!
         </div>
       </div>
 
@@ -309,7 +310,7 @@
     </div>
 
     <script>
-      // ---------- GAME 1: Save the Animals (Poacher Escape) ----------
+      // ---------- GAME 1: Save the Animals (Endless Runner) ----------
       (function () {
         const canvas = document.getElementById("poacherCanvas");
         const ctx = canvas.getContext("2d");
@@ -318,57 +319,36 @@
 
         const TOTAL_ANIMALS = 5;
         const ANIMAL_EMOJIS = ["🐘", "🦏", "🐅", "🦓", "🦍"];
+        const SCROLL_SPEED = 3;
 
-        let player, helicopter, animals, poachers, trees;
-        let saved, lives, startTime, gameRunning, carrying;
+        let player;
+        let animals, poachers, bullets, trees, helicopter;
+        let savedSet;
+        let saved, lives, startTime, gameRunning;
+        let frameCount, nextAnimalCooldown, nextPoacherCooldown;
         let keys = {};
 
         function rand(min, max) { return Math.random() * (max - min) + min; }
         function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
         function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
-        function spawnAwayFrom(x, y, minDist) {
-          let nx, ny, tries = 0;
-          do {
-            nx = rand(40, W - 40);
-            ny = rand(40, H - 40);
-            tries++;
-          } while (Math.hypot(nx - x, ny - y) < minDist && tries < 50);
-          return { x: nx, y: ny };
-        }
-
         function initGame() {
-          player = { x: W / 2, y: H / 2, size: 28, speed: 3.4 };
-          helicopter = { x: 70, y: 70, size: 50 };
-          carrying = null;
+          player = { x: W / 2, y: H - 80, size: 26, speed: 4.5 };
+          animals = [];
+          poachers = [];
+          bullets = [];
+          helicopter = null;
+          savedSet = new Set();
           saved = 0;
           lives = 3;
           startTime = Date.now();
+          frameCount = 0;
+          nextAnimalCooldown = 60;
+          nextPoacherCooldown = 150;
 
           trees = [];
-          for (let i = 0; i < 12; i++) {
-            trees.push({ x: rand(20, W - 20), y: rand(20, H - 20), size: rand(20, 35) });
-          }
-
-          animals = [];
-          for (let i = 0; i < TOTAL_ANIMALS; i++) {
-            const pos = spawnAwayFrom(helicopter.x, helicopter.y, 200);
-            animals.push({
-              x: pos.x,
-              y: pos.y,
-              size: 26,
-              emoji: ANIMAL_EMOJIS[i % ANIMAL_EMOJIS.length],
-              alive: true,
-              rescued: false,
-              wanderAngle: Math.random() * Math.PI * 2,
-              wanderTimer: 0,
-            });
-          }
-
-          poachers = [];
-          for (let i = 0; i < 3; i++) {
-            const pos = spawnAwayFrom(player.x, player.y, 200);
-            poachers.push({ x: pos.x, y: pos.y, size: 28, speed: 1.1 });
+          for (let i = 0; i < 18; i++) {
+            trees.push({ x: rand(10, W - 10), y: rand(-H, H), size: rand(18, 34) });
           }
 
           document.getElementById("total").textContent = TOTAL_ANIMALS;
@@ -389,166 +369,215 @@
           ctx.fillText(emoji, x, y);
         }
 
+        function trySpawnAnimal() {
+          if (animals.length > 0) return;
+          if (savedSet.size >= TOTAL_ANIMALS) return;
+          const remaining = ANIMAL_EMOJIS.filter((e) => !savedSet.has(e));
+          const emoji = remaining[Math.floor(Math.random() * remaining.length)];
+          animals.push({ x: rand(80, W - 80), y: -40, size: 30, emoji });
+        }
+
+        function spawnPoacher() {
+          const side = Math.random() < 0.5 ? "left" : "right";
+          poachers.push({
+            x: side === "left" ? rand(40, 90) : rand(W - 90, W - 40),
+            y: -40,
+            size: 26,
+            shootTimer: rand(40, 80),
+          });
+        }
+
+        function spawnHelicopter() {
+          helicopter = { x: W / 2, y: -60, size: 56 };
+        }
+
         function update() {
           if (!gameRunning) return;
+          frameCount++;
 
+          // Player movement: left/right primary, slight up/down within bottom zone
           let dx = 0, dy = 0;
-          if (keys["ArrowUp"] || keys["w"] || keys["W"]) dy -= 1;
-          if (keys["ArrowDown"] || keys["s"] || keys["S"]) dy += 1;
           if (keys["ArrowLeft"] || keys["a"] || keys["A"]) dx -= 1;
           if (keys["ArrowRight"] || keys["d"] || keys["D"]) dx += 1;
+          if (keys["ArrowUp"] || keys["w"] || keys["W"]) dy -= 1;
+          if (keys["ArrowDown"] || keys["s"] || keys["S"]) dy += 1;
           if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
-          player.x = clamp(player.x + dx * player.speed, 20, W - 20);
-          player.y = clamp(player.y + dy * player.speed, 20, H - 20);
+          player.x = clamp(player.x + dx * player.speed, 25, W - 25);
+          player.y = clamp(player.y + dy * player.speed, H * 0.45, H - 35);
 
-          animals.forEach((a) => {
-            if (!a.alive || a.rescued) return;
-            a.wanderTimer--;
-            if (a.wanderTimer <= 0) {
-              a.wanderAngle = Math.random() * Math.PI * 2;
-              a.wanderTimer = rand(40, 120);
+          // Scroll background trees
+          trees.forEach((t) => {
+            t.y += SCROLL_SPEED;
+            if (t.y > H + 40) {
+              t.y = -40;
+              t.x = rand(10, W - 10);
+              t.size = rand(18, 34);
             }
-            a.x = clamp(a.x + Math.cos(a.wanderAngle) * 0.6, 20, W - 20);
-            a.y = clamp(a.y + Math.sin(a.wanderAngle) * 0.6, 20, H - 20);
           });
 
+          // Spawn animals (one at a time, with cooldown after the last finished)
+          if (animals.length === 0 && savedSet.size < TOTAL_ANIMALS && !helicopter) {
+            nextAnimalCooldown--;
+            if (nextAnimalCooldown <= 0) {
+              trySpawnAnimal();
+              nextAnimalCooldown = rand(80, 140);
+            }
+          }
+
+          // Scroll animals; remove if off-screen (no penalty — they respawn)
+          animals.forEach((a) => { a.y += SCROLL_SPEED; });
+          animals = animals.filter((a) => {
+            if (a.y > H + 40) return false;
+            // Collision with player = save
+            if (dist(a, player) < player.size + a.size / 2) {
+              if (!savedSet.has(a.emoji)) {
+                savedSet.add(a.emoji);
+                saved++;
+              }
+              return false;
+            }
+            return true;
+          });
+
+          // Spawn poachers periodically (only once first animal has appeared)
+          if (savedSet.size < TOTAL_ANIMALS || helicopter) {
+            nextPoacherCooldown--;
+            if (nextPoacherCooldown <= 0 && frameCount > 90) {
+              spawnPoacher();
+              nextPoacherCooldown = rand(120, 200);
+            }
+          }
+
+          // Scroll poachers + shoot
           poachers.forEach((p) => {
-            let target = null;
-            let bestDist = Infinity;
-            if (carrying && Math.random() < 0.3) {
-              target = player;
-            } else {
-              animals.forEach((a) => {
-                if (a.alive && !a.rescued) {
-                  const d = dist(p, a);
-                  if (d < bestDist) { bestDist = d; target = a; }
-                }
+            p.y += SCROLL_SPEED;
+            p.shootTimer--;
+            if (p.shootTimer <= 0 && p.y > 30 && p.y < H - 40) {
+              const dxb = player.x - p.x;
+              const dyb = player.y - p.y;
+              const len = Math.hypot(dxb, dyb) || 1;
+              const bSpeed = 4.5;
+              bullets.push({
+                x: p.x,
+                y: p.y,
+                vx: (dxb / len) * bSpeed,
+                vy: (dyb / len) * bSpeed,
+                size: 6,
               });
-              if (!target) target = player;
-            }
-            if (target) {
-              const d = dist(p, target);
-              if (d > 0) {
-                p.x += ((target.x - p.x) / d) * p.speed;
-                p.y += ((target.y - p.y) / d) * p.speed;
-              }
+              p.shootTimer = rand(70, 140);
             }
           });
+          poachers = poachers.filter((p) => p.y < H + 50);
 
-          animals.forEach((a) => {
-            if (!a.alive || a.rescued) return;
-            poachers.forEach((p) => {
-              if (dist(a, p) < a.size) a.alive = false;
-            });
+          // Update bullets
+          bullets.forEach((b) => {
+            b.x += b.vx;
+            b.y += b.vy;
           });
-
-          if (!carrying) {
-            for (const a of animals) {
-              if (a.alive && !a.rescued && dist(player, a) < player.size) {
-                carrying = a;
-                break;
-              }
-            }
-          }
-
-          if (carrying) {
-            carrying.x = player.x;
-            carrying.y = player.y - 22;
-          }
-
-          if (carrying && dist(player, helicopter) < helicopter.size) {
-            carrying.rescued = true;
-            carrying = null;
-            saved++;
-          }
-
-          poachers.forEach((p) => {
-            if (dist(player, p) < player.size) {
+          bullets = bullets.filter((b) => {
+            if (b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20) return false;
+            if (Math.hypot(b.x - player.x, b.y - player.y) < player.size) {
               lives--;
-              player.x = W / 2;
-              player.y = H / 2;
-              if (carrying) carrying = null;
               if (lives <= 0) endGame(false, "💀 The poachers got you!");
+              return false;
             }
+            return true;
           });
 
-          const remaining = animals.filter((a) => a.alive && !a.rescued).length;
-          if (saved === TOTAL_ANIMALS && dist(player, helicopter) < helicopter.size) {
-            endGame(true, "🎉 You saved them all and escaped!");
+          // Helicopter spawns once all species are saved
+          if (!helicopter && savedSet.size >= TOTAL_ANIMALS) {
+            spawnHelicopter();
           }
-          if (remaining === 0 && saved < TOTAL_ANIMALS && !carrying) {
-            endGame(false, `😢 The poachers got too many. You only saved ${saved}.`);
+          if (helicopter) {
+            helicopter.y += SCROLL_SPEED * 0.7;
+            if (dist(player, helicopter) < player.size + helicopter.size / 2) {
+              endGame(true, "🎉 You saved them all and escaped!");
+            }
+            if (helicopter.y > H + 60) {
+              // helicopter looped past — spawn another so player can still win
+              spawnHelicopter();
+            }
           }
 
           updateHUD();
         }
 
         function draw() {
+          // Base grass
           ctx.fillStyle = "#6ea84f";
           ctx.fillRect(0, 0, W, H);
+
+          // Scrolling checker pattern to convey forward motion
+          const cell = 60;
+          const offset = (frameCount * SCROLL_SPEED) % cell;
           ctx.fillStyle = "#5e9742";
-          for (let i = 0; i < W; i += 40) {
-            for (let j = 0; j < H; j += 40) {
-              if ((i / 40 + j / 40) % 2 === 0) {
-                ctx.fillRect(i, j, 40, 40);
+          for (let j = -cell + offset; j < H + cell; j += cell) {
+            for (let i = 0; i < W; i += cell) {
+              const row = Math.floor((j + cell - offset) / cell);
+              if ((Math.floor(i / cell) + row) % 2 === 0) {
+                ctx.fillRect(i, j, cell, cell);
               }
             }
           }
 
+          // Trees (background)
           trees.forEach((t) => drawEmoji("🌳", t.x, t.y, t.size));
 
-          ctx.fillStyle = "#444";
-          ctx.beginPath();
-          ctx.arc(helicopter.x, helicopter.y, helicopter.size / 2 + 8, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = "#ffe066";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(helicopter.x, helicopter.y, helicopter.size / 2 + 4, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.fillStyle = "#ffe066";
-          ctx.font = "bold 18px sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("H", helicopter.x, helicopter.y + 1);
-          drawEmoji("🚁", helicopter.x, helicopter.y - 30, 36);
+          // Animals
+          animals.forEach((a) => drawEmoji(a.emoji, a.x, a.y, 36));
 
-          animals.forEach((a) => {
-            if (a.rescued) return;
-            if (!a.alive) {
-              ctx.globalAlpha = 0.5;
-              drawEmoji("💀", a.x, a.y, 24);
-              ctx.globalAlpha = 1;
-              return;
-            }
-            drawEmoji(a.emoji, a.x, a.y, 32);
-          });
-
+          // Poachers
           poachers.forEach((p) => {
             ctx.fillStyle = "rgba(220,40,40,0.3)";
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size + 4, 0, Math.PI * 2);
             ctx.fill();
-            drawEmoji("🥷", p.x, p.y, 32);
+            drawEmoji("🥷", p.x, p.y, 30);
             drawEmoji("🔫", p.x + 14, p.y + 6, 16);
           });
 
+          // Bullets (red with yellow core)
+          bullets.forEach((b) => {
+            ctx.fillStyle = "#cc1111";
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#ffd633";
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.size - 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          // Helicopter
+          if (helicopter) {
+            ctx.fillStyle = "rgba(255,224,102,0.25)";
+            ctx.beginPath();
+            ctx.arc(helicopter.x, helicopter.y, helicopter.size / 2 + 10, 0, Math.PI * 2);
+            ctx.fill();
+            drawEmoji("🚁", helicopter.x, helicopter.y, 56);
+          }
+
+          // Player (auto-running)
           ctx.fillStyle = "rgba(40,120,220,0.25)";
           ctx.beginPath();
           ctx.arc(player.x, player.y, player.size + 4, 0, Math.PI * 2);
           ctx.fill();
-          drawEmoji("🦸", player.x, player.y, 32);
+          // Alternate running pose every few frames
+          const runEmoji = Math.floor(frameCount / 6) % 2 === 0 ? "🏃" : "🏃‍♂️";
+          drawEmoji(runEmoji, player.x, player.y, 36);
 
-          if (carrying) {
-            drawEmoji(carrying.emoji, carrying.x, carrying.y, 26);
-          }
-
-          for (let i = 0; i < saved; i++) {
-            const angle = (i / TOTAL_ANIMALS) * Math.PI * 2;
-            const rx = helicopter.x + Math.cos(angle) * 38;
-            const ry = helicopter.y + Math.sin(angle) * 38;
-            drawEmoji(ANIMAL_EMOJIS[i], rx, ry, 18);
-          }
+          // Saved animals strip at top-left of canvas
+          ANIMAL_EMOJIS.forEach((e, i) => {
+            const x = 26 + i * 36;
+            const y = 26;
+            if (savedSet.has(e)) {
+              drawEmoji(e, x, y, 28);
+            } else {
+              ctx.globalAlpha = 0.3;
+              drawEmoji(e, x, y, 26);
+              ctx.globalAlpha = 1;
+            }
+          });
         }
 
         function loop() {
