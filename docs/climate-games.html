@@ -296,6 +296,9 @@
                   Odd1sOut
                 </div>
               </div>
+              <div style="font-size: 0.72rem; color: #888; margin-bottom: 14px;">
+                Fan art — not affiliated with JaidenAnimations or TheOdd1sOut
+              </div>
               <button class="play-btn" id="playBtn">▶ Start Game</button>
             </div>
           </div>
@@ -622,84 +625,94 @@
           circ(x + s*0.04, y - s*0.4, s*0.012, "#000");
           rct(x - s*0.03, y - s*0.34, s*0.06, s*0.012, "#000");
         }
-        // JaidenAnimations: long brown ponytail, magenta shirt, dot eyes
+        // JaidenAnimations (fan art): round head, low ponytail, magenta long-sleeve shirt
         function drawJaiden(x, y, s, runFrame) {
-          const legOff = Math.sin(runFrame * 0.5) * s * 0.1;
-          // legs (jeans)
-          ctx.strokeStyle = "#3d4a6a"; ctx.lineWidth = s * 0.09; ctx.lineCap = "round";
-          ctx.beginPath(); ctx.moveTo(x - s*0.07, y + s*0.13);
-          ctx.lineTo(x - s*0.07 + legOff, y + s*0.4); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(x + s*0.07, y + s*0.13);
-          ctx.lineTo(x + s*0.07 - legOff, y + s*0.4); ctx.stroke();
+          const legOff = Math.sin(runFrame * 0.5) * s * 0.08;
           // shoes
-          elps(x - s*0.07 + legOff, y + s*0.41, s*0.06, s*0.03, "#1a1a1a");
-          elps(x + s*0.07 - legOff, y + s*0.41, s*0.06, s*0.03, "#1a1a1a");
-          // magenta shirt (Jaiden's signature)
-          rct(x - s*0.16, y - s*0.22, s*0.32, s*0.34, "#d6488a");
-          // neck
-          rct(x - s*0.04, y - s*0.27, s*0.08, s*0.06, "#fbe0c4");
-          // arms swinging
+          elps(x - s*0.09 + legOff, y + s*0.44, s*0.07, s*0.035, "#222");
+          elps(x + s*0.09 - legOff, y + s*0.44, s*0.07, s*0.035, "#222");
+          // legs (blue jeans)
+          ctx.strokeStyle = "#465c80"; ctx.lineWidth = s * 0.11; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(x - s*0.08, y + s*0.15);
+          ctx.lineTo(x - s*0.09 + legOff, y + s*0.42); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x + s*0.08, y + s*0.15);
+          ctx.lineTo(x + s*0.09 - legOff, y + s*0.42); ctx.stroke();
+          // arms (magenta long sleeves, swinging)
           const armOff = Math.sin(runFrame * 0.5) * s * 0.08;
-          ctx.strokeStyle = "#d6488a"; ctx.lineWidth = s * 0.08; ctx.lineCap = "round";
-          ctx.beginPath(); ctx.moveTo(x - s*0.15, y - s*0.16);
-          ctx.lineTo(x - s*0.24, y + s*0.02 + armOff); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(x + s*0.15, y - s*0.16);
-          ctx.lineTo(x + s*0.24, y + s*0.02 - armOff); ctx.stroke();
+          ctx.strokeStyle = "#d44a8a"; ctx.lineWidth = s * 0.1; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(x - s*0.16, y - s*0.14);
+          ctx.lineTo(x - s*0.24, y + s*0.06 + armOff); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x + s*0.16, y - s*0.14);
+          ctx.lineTo(x + s*0.24, y + s*0.06 - armOff); ctx.stroke();
+          // magenta torso (long shirt)
+          ctx.fillStyle = "#d44a8a";
+          ctx.beginPath();
+          ctx.moveTo(x - s*0.17, y - s*0.2);
+          ctx.lineTo(x + s*0.17, y - s*0.2);
+          ctx.lineTo(x + s*0.16, y + s*0.16);
+          ctx.lineTo(x - s*0.16, y + s*0.16);
+          ctx.closePath();
+          ctx.fill();
           // hands
-          circ(x - s*0.24, y + s*0.02 + armOff, s*0.04, "#fbe0c4");
-          circ(x + s*0.24, y + s*0.02 - armOff, s*0.04, "#fbe0c4");
-          // head (peach skin)
-          circ(x, y - s*0.38, s*0.14, "#fbe0c4");
-          // hair top — covers upper half of head
-          ctx.fillStyle = "#4a2818";
+          circ(x - s*0.24, y + s*0.06 + armOff, s*0.045, "#f8d4ad");
+          circ(x + s*0.24, y + s*0.06 - armOff, s*0.045, "#f8d4ad");
+          // neck
+          rct(x - s*0.04, y - s*0.24, s*0.08, s*0.06, "#f8d4ad");
+          // head (round, peach)
+          circ(x, y - s*0.36, s*0.16, "#f8d4ad");
+          // ponytail behind/below head (long, brown, hanging back)
+          ctx.fillStyle = "#3d2410";
           ctx.beginPath();
-          ctx.arc(x, y - s*0.38, s*0.14, Math.PI * 0.95, Math.PI * 2.05);
-          ctx.lineTo(x + s*0.14, y - s*0.34);
-          ctx.lineTo(x - s*0.14, y - s*0.34);
+          ctx.ellipse(x - s*0.14, y - s*0.22, s*0.07, s*0.16, 0.5, 0, Math.PI*2);
+          ctx.fill();
+          // tied scrunchie
+          circ(x - s*0.08, y - s*0.32, s*0.025, "#8a3a5a");
+          // hair cap (top of head, swept slightly to right)
+          ctx.fillStyle = "#3d2410";
+          ctx.beginPath();
+          ctx.arc(x, y - s*0.36, s*0.16, Math.PI * 1.0, Math.PI * 2.0);
+          ctx.quadraticCurveTo(x + s*0.18, y - s*0.32, x + s*0.04, y - s*0.28);
+          ctx.lineTo(x - s*0.16, y - s*0.34);
           ctx.closePath();
           ctx.fill();
-          // bangs swoop
+          // bangs hanging on forehead
           ctx.beginPath();
-          ctx.moveTo(x - s*0.13, y - s*0.4);
-          ctx.quadraticCurveTo(x - s*0.02, y - s*0.32, x + s*0.06, y - s*0.36);
-          ctx.lineTo(x + s*0.1, y - s*0.42);
-          ctx.lineTo(x - s*0.12, y - s*0.42);
+          ctx.moveTo(x - s*0.14, y - s*0.4);
+          ctx.quadraticCurveTo(x - s*0.04, y - s*0.28, x + s*0.06, y - s*0.32);
+          ctx.lineTo(x + s*0.1, y - s*0.44);
           ctx.closePath();
           ctx.fill();
-          // ponytail behind head
-          ctx.beginPath();
-          ctx.ellipse(x - s*0.18, y - s*0.3, s*0.07, s*0.2, 0.4, 0, Math.PI*2);
-          ctx.fill();
-          // eyes (dot eyes — Jaiden style)
-          circ(x - s*0.05, y - s*0.36, s*0.018, "#000");
-          circ(x + s*0.05, y - s*0.36, s*0.018, "#000");
+          // eyes (closed/dot style — Jaiden's signature)
+          ctx.strokeStyle = "#000"; ctx.lineWidth = s * 0.018; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.arc(x - s*0.06, y - s*0.34, s*0.025, Math.PI * 1.2, Math.PI * 1.8); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x + s*0.06, y - s*0.34, s*0.025, Math.PI * 1.2, Math.PI * 1.8); ctx.stroke();
+          // cheek blush (small pink ovals)
+          ctx.fillStyle = "rgba(232,120,140,0.55)";
+          ctx.beginPath(); ctx.ellipse(x - s*0.09, y - s*0.3, s*0.025, s*0.015, 0, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(x + s*0.09, y - s*0.3, s*0.025, s*0.015, 0, 0, Math.PI*2); ctx.fill();
           // small smile
-          ctx.strokeStyle = "#000"; ctx.lineWidth = s * 0.014; ctx.lineCap = "round";
-          ctx.beginPath(); ctx.arc(x, y - s*0.32, s*0.025, 0.2, Math.PI - 0.2); ctx.stroke();
-          // cheek blush
-          ctx.fillStyle = "rgba(230,130,140,0.4)";
-          ctx.beginPath(); ctx.arc(x - s*0.08, y - s*0.32, s*0.022, 0, Math.PI*2); ctx.fill();
-          ctx.beginPath(); ctx.arc(x + s*0.08, y - s*0.32, s*0.022, 0, Math.PI*2); ctx.fill();
+          ctx.strokeStyle = "#3a2418"; ctx.lineWidth = s * 0.012;
+          ctx.beginPath(); ctx.arc(x, y - s*0.28, s*0.025, 0.25, Math.PI - 0.25); ctx.stroke();
         }
 
-        // TheOdd1sOut: white marshmallow body, brown hair tuft, simple face
+        // TheOdd1sOut (fan art): tall white marshmallow with brown hair tuft, stick limbs
         function drawOdd1sOut(x, y, s, runFrame) {
-          const legOff = Math.sin(runFrame * 0.5) * s * 0.06;
-          // stick legs
-          ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = s * 0.04; ctx.lineCap = "round";
-          ctx.beginPath(); ctx.moveTo(x - s*0.09, y + s*0.2);
-          ctx.lineTo(x - s*0.09 + legOff, y + s*0.4); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(x + s*0.09, y + s*0.2);
-          ctx.lineTo(x + s*0.09 - legOff, y + s*0.4); ctx.stroke();
+          const legOff = Math.sin(runFrame * 0.5) * s * 0.07;
+          // stick legs (from bottom of body)
+          ctx.strokeStyle = "#222"; ctx.lineWidth = s * 0.05; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(x - s*0.08, y + s*0.18);
+          ctx.lineTo(x - s*0.09 + legOff, y + s*0.42); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x + s*0.08, y + s*0.18);
+          ctx.lineTo(x + s*0.09 - legOff, y + s*0.42); ctx.stroke();
           // shoes
-          elps(x - s*0.09 + legOff, y + s*0.42, s*0.06, s*0.03, "#1a1a1a");
-          elps(x + s*0.09 - legOff, y + s*0.42, s*0.06, s*0.03, "#1a1a1a");
-          // marshmallow body (rounded rectangle)
-          const bw = s * 0.5, bh = s * 0.7;
+          elps(x - s*0.09 + legOff, y + s*0.43, s*0.06, s*0.03, "#222");
+          elps(x + s*0.09 - legOff, y + s*0.43, s*0.06, s*0.03, "#222");
+          // marshmallow body — tall rounded rectangle with subtle outline
+          const bw = s * 0.42, bh = s * 0.6;
           const bx = x - bw / 2, by = y - bh * 0.7;
-          const r = s * 0.18;
-          ctx.fillStyle = "#fdfdfd";
-          ctx.strokeStyle = "#999"; ctx.lineWidth = 2;
+          const r = s * 0.2;
+          ctx.fillStyle = "#fefefe";
+          ctx.strokeStyle = "#888"; ctx.lineWidth = 2.2;
           ctx.beginPath();
           ctx.moveTo(bx + r, by);
           ctx.lineTo(bx + bw - r, by);
@@ -713,27 +726,36 @@
           ctx.closePath();
           ctx.fill();
           ctx.stroke();
-          // stick arms
+          // stick arms protruding from body sides
           const armOff = Math.sin(runFrame * 0.5) * s * 0.06;
-          ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = s * 0.035; ctx.lineCap = "round";
-          ctx.beginPath(); ctx.moveTo(bx, y - s*0.12);
-          ctx.lineTo(bx - s*0.12, y + s*0.02 + armOff); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(bx + bw, y - s*0.12);
-          ctx.lineTo(bx + bw + s*0.12, y + s*0.02 - armOff); ctx.stroke();
-          // brown hair tuft on top
-          ctx.fillStyle = "#5a3a1a";
+          ctx.strokeStyle = "#222"; ctx.lineWidth = s * 0.045; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(bx + s*0.02, y - s*0.08);
+          ctx.lineTo(bx - s*0.12, y + s*0.06 + armOff); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(bx + bw - s*0.02, y - s*0.08);
+          ctx.lineTo(bx + bw + s*0.12, y + s*0.06 - armOff); ctx.stroke();
+          // little stick hands
+          circ(bx - s*0.12, y + s*0.06 + armOff, s*0.025, "#222");
+          circ(bx + bw + s*0.12, y + s*0.06 - armOff, s*0.025, "#222");
+          // brown hair tuft on top (signature messy swoop, going to one side)
+          ctx.fillStyle = "#3d2410";
           ctx.beginPath();
-          ctx.moveTo(x - s*0.08, by + s*0.04);
-          ctx.quadraticCurveTo(x - s*0.05, by - s*0.14, x + s*0.04, by - s*0.1);
-          ctx.quadraticCurveTo(x + s*0.13, by - s*0.04, x + s*0.1, by + s*0.04);
+          ctx.moveTo(x - s*0.1, by + s*0.04);
+          ctx.quadraticCurveTo(x - s*0.05, by - s*0.06, x - s*0.02, by - s*0.02);
+          ctx.quadraticCurveTo(x + s*0.05, by - s*0.18, x + s*0.12, by - s*0.06);
+          ctx.quadraticCurveTo(x + s*0.16, by, x + s*0.12, by + s*0.04);
           ctx.closePath();
           ctx.fill();
-          // eyes (dots, slightly larger - signature Odd1sOut style)
-          circ(x - s*0.09, y - s*0.22, s*0.025, "#000");
-          circ(x + s*0.09, y - s*0.22, s*0.025, "#000");
-          // tiny smile
-          ctx.strokeStyle = "#000"; ctx.lineWidth = s * 0.015; ctx.lineCap = "round";
-          ctx.beginPath(); ctx.arc(x, y - s*0.14, s*0.04, 0.15, Math.PI - 0.15); ctx.stroke();
+          // two strands of hair
+          ctx.strokeStyle = "#3d2410"; ctx.lineWidth = s * 0.02; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(x + s*0.04, by - s*0.04);
+          ctx.lineTo(x + s*0.08, by - s*0.14); ctx.stroke();
+          // eyes (bigger oval dots — signature Odd1sOut style)
+          ctx.fillStyle = "#000";
+          ctx.beginPath(); ctx.ellipse(x - s*0.08, y - s*0.22, s*0.025, s*0.03, 0, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(x + s*0.08, y - s*0.22, s*0.025, s*0.03, 0, 0, Math.PI*2); ctx.fill();
+          // small smile
+          ctx.strokeStyle = "#000"; ctx.lineWidth = s * 0.018; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.arc(x, y - s*0.12, s*0.045, 0.2, Math.PI - 0.2); ctx.stroke();
         }
 
         function drawPlayer(x, y, s, runFrame) {
@@ -973,6 +995,20 @@
 
           ctx.fillStyle = grassColor;
           ctx.fillRect(0, 0, W, H);
+
+          // Static lane dividers (subtle white dashes, do NOT scroll)
+          ctx.strokeStyle = "rgba(255,255,255,0.35)";
+          ctx.lineWidth = 3;
+          ctx.setLineDash([18, 22]);
+          const divider1 = (LANES[0] + LANES[1]) / 2;
+          const divider2 = (LANES[1] + LANES[2]) / 2;
+          [divider1, divider2].forEach((lx) => {
+            ctx.beginPath();
+            ctx.moveTo(lx, 0);
+            ctx.lineTo(lx, H);
+            ctx.stroke();
+          });
+          ctx.setLineDash([]);
 
           // Trees on the sides of the road
           const drawBiome = t > 0.5 ? targetBiome : currentBiome;
