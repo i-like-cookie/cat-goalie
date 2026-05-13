@@ -821,35 +821,14 @@
         }
 
         function draw() {
-          // Background: interpolated biome grass color
+          // Background: solid biome color (interpolated during transitions)
           const b1 = BIOMES[currentBiome];
           const b2 = BIOMES[targetBiome];
           const t = currentBiome === targetBiome ? 0 : biomeT;
           const grassColor = lerpColor(b1.grass, b2.grass, t);
-          const stripeColor = lerpColor(b1.stripe, b2.stripe, t);
 
           ctx.fillStyle = grassColor;
           ctx.fillRect(0, 0, W, H);
-
-          // Scrolling stripes to convey forward motion
-          const cell = 80;
-          const offset = (frameCount * SCROLL_SPEED) % cell;
-          ctx.fillStyle = stripeColor;
-          for (let j = -cell + offset; j < H + cell; j += cell) {
-            ctx.fillRect(0, j, W, cell * 0.5);
-          }
-
-          // Lane lines (subtle dashed)
-          ctx.strokeStyle = "rgba(255,255,255,0.18)";
-          ctx.lineWidth = 2;
-          ctx.setLineDash([14, 16]);
-          [LANES[0] - W * 0.13, LANES[1] - W * 0.13, LANES[1] + W * 0.13, LANES[2] + W * 0.13].forEach((lx) => {
-            ctx.beginPath();
-            ctx.moveTo(lx, -offset);
-            ctx.lineTo(lx, H);
-            ctx.stroke();
-          });
-          ctx.setLineDash([]);
 
           // Trees on the sides of the road
           const drawBiome = t > 0.5 ? targetBiome : currentBiome;
