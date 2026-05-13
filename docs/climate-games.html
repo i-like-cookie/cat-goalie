@@ -127,6 +127,42 @@
         font-weight: 600;
       }
       .play-btn:hover { background: #1e8449; }
+      .char-select {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        margin: 14px 0 18px;
+      }
+      .char-card {
+        background: #f4f4f4;
+        border: 3px solid transparent;
+        border-radius: 12px;
+        padding: 8px 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #333;
+      }
+      .char-card.selected {
+        border-color: #27ae60;
+        background: #d8f5d8;
+      }
+      .char-card:hover { background: #e8e8e8; }
+      .char-card.selected:hover { background: #d8f5d8; }
+      .char-card canvas {
+        display: block;
+        margin: 0 auto 4px;
+        background: #fff;
+        border-radius: 8px;
+      }
+      .char-select-label {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #2d5016;
+        margin-top: 4px;
+      }
       .canvas-wrap { position: relative; }
       .controls-mobile { display: none; margin-top: 14px; text-align: center; }
       .dpad {
@@ -249,6 +285,17 @@
             <div class="overlay-box">
               <h3 id="overlayTitle">🌍 Save the Animals</h3>
               <p id="overlayMsg">Help protect endangered species from poachers. Rescue them all and fly to safety!</p>
+              <div class="char-select-label">Pick your character:</div>
+              <div class="char-select" id="charSelect">
+                <div class="char-card selected" data-char="jaiden">
+                  <canvas id="charPrevJaiden" width="70" height="90"></canvas>
+                  Jaiden
+                </div>
+                <div class="char-card" data-char="odd1sout">
+                  <canvas id="charPrevOdd" width="70" height="90"></canvas>
+                  Odd1sOut
+                </div>
+              </div>
               <button class="play-btn" id="playBtn">▶ Start Game</button>
             </div>
           </div>
@@ -575,27 +622,123 @@
           circ(x + s*0.04, y - s*0.4, s*0.012, "#000");
           rct(x - s*0.03, y - s*0.34, s*0.06, s*0.012, "#000");
         }
-        function drawPlayer(x, y, s, runFrame) {
+        // JaidenAnimations: long brown ponytail, magenta shirt, dot eyes
+        function drawJaiden(x, y, s, runFrame) {
           const legOff = Math.sin(runFrame * 0.5) * s * 0.1;
-          ctx.strokeStyle = "#1f5a30"; ctx.lineWidth = s * 0.08; ctx.lineCap = "round";
-          ctx.beginPath(); ctx.moveTo(x - s*0.08, y + s*0.1);
-          ctx.lineTo(x - s*0.08 + legOff, y + s*0.35); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(x + s*0.08, y + s*0.1);
-          ctx.lineTo(x + s*0.08 - legOff, y + s*0.35); ctx.stroke();
-          rct(x - s*0.14, y - s*0.27, s*0.28, s*0.38, "#27ae60");
-          rct(x - s*0.14, y + s*0.06, s*0.28, s*0.03, "#5a3a1a");
+          // legs (jeans)
+          ctx.strokeStyle = "#3d4a6a"; ctx.lineWidth = s * 0.09; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(x - s*0.07, y + s*0.13);
+          ctx.lineTo(x - s*0.07 + legOff, y + s*0.4); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x + s*0.07, y + s*0.13);
+          ctx.lineTo(x + s*0.07 - legOff, y + s*0.4); ctx.stroke();
+          // shoes
+          elps(x - s*0.07 + legOff, y + s*0.41, s*0.06, s*0.03, "#1a1a1a");
+          elps(x + s*0.07 - legOff, y + s*0.41, s*0.06, s*0.03, "#1a1a1a");
+          // magenta shirt (Jaiden's signature)
+          rct(x - s*0.16, y - s*0.22, s*0.32, s*0.34, "#d6488a");
+          // neck
+          rct(x - s*0.04, y - s*0.27, s*0.08, s*0.06, "#fbe0c4");
+          // arms swinging
           const armOff = Math.sin(runFrame * 0.5) * s * 0.08;
-          ctx.strokeStyle = "#27ae60"; ctx.lineWidth = s * 0.08; ctx.lineCap = "round";
-          ctx.beginPath(); ctx.moveTo(x - s*0.12, y - s*0.18);
-          ctx.lineTo(x - s*0.22, y + armOff); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(x + s*0.12, y - s*0.18);
-          ctx.lineTo(x + s*0.22, y - armOff); ctx.stroke();
-          circ(x, y - s*0.42, s*0.13, "#6b4226");
-          circ(x, y - s*0.38, s*0.11, "#f4d4b4");
-          circ(x - s*0.04, y - s*0.38, s*0.013, "#000");
-          circ(x + s*0.04, y - s*0.38, s*0.013, "#000");
-          ctx.strokeStyle = "#000"; ctx.lineWidth = s * 0.012;
-          ctx.beginPath(); ctx.arc(x, y - s*0.34, s*0.04, 0, Math.PI); ctx.stroke();
+          ctx.strokeStyle = "#d6488a"; ctx.lineWidth = s * 0.08; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(x - s*0.15, y - s*0.16);
+          ctx.lineTo(x - s*0.24, y + s*0.02 + armOff); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x + s*0.15, y - s*0.16);
+          ctx.lineTo(x + s*0.24, y + s*0.02 - armOff); ctx.stroke();
+          // hands
+          circ(x - s*0.24, y + s*0.02 + armOff, s*0.04, "#fbe0c4");
+          circ(x + s*0.24, y + s*0.02 - armOff, s*0.04, "#fbe0c4");
+          // head (peach skin)
+          circ(x, y - s*0.38, s*0.14, "#fbe0c4");
+          // hair top — covers upper half of head
+          ctx.fillStyle = "#4a2818";
+          ctx.beginPath();
+          ctx.arc(x, y - s*0.38, s*0.14, Math.PI * 0.95, Math.PI * 2.05);
+          ctx.lineTo(x + s*0.14, y - s*0.34);
+          ctx.lineTo(x - s*0.14, y - s*0.34);
+          ctx.closePath();
+          ctx.fill();
+          // bangs swoop
+          ctx.beginPath();
+          ctx.moveTo(x - s*0.13, y - s*0.4);
+          ctx.quadraticCurveTo(x - s*0.02, y - s*0.32, x + s*0.06, y - s*0.36);
+          ctx.lineTo(x + s*0.1, y - s*0.42);
+          ctx.lineTo(x - s*0.12, y - s*0.42);
+          ctx.closePath();
+          ctx.fill();
+          // ponytail behind head
+          ctx.beginPath();
+          ctx.ellipse(x - s*0.18, y - s*0.3, s*0.07, s*0.2, 0.4, 0, Math.PI*2);
+          ctx.fill();
+          // eyes (dot eyes — Jaiden style)
+          circ(x - s*0.05, y - s*0.36, s*0.018, "#000");
+          circ(x + s*0.05, y - s*0.36, s*0.018, "#000");
+          // small smile
+          ctx.strokeStyle = "#000"; ctx.lineWidth = s * 0.014; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.arc(x, y - s*0.32, s*0.025, 0.2, Math.PI - 0.2); ctx.stroke();
+          // cheek blush
+          ctx.fillStyle = "rgba(230,130,140,0.4)";
+          ctx.beginPath(); ctx.arc(x - s*0.08, y - s*0.32, s*0.022, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(x + s*0.08, y - s*0.32, s*0.022, 0, Math.PI*2); ctx.fill();
+        }
+
+        // TheOdd1sOut: white marshmallow body, brown hair tuft, simple face
+        function drawOdd1sOut(x, y, s, runFrame) {
+          const legOff = Math.sin(runFrame * 0.5) * s * 0.06;
+          // stick legs
+          ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = s * 0.04; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(x - s*0.09, y + s*0.2);
+          ctx.lineTo(x - s*0.09 + legOff, y + s*0.4); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x + s*0.09, y + s*0.2);
+          ctx.lineTo(x + s*0.09 - legOff, y + s*0.4); ctx.stroke();
+          // shoes
+          elps(x - s*0.09 + legOff, y + s*0.42, s*0.06, s*0.03, "#1a1a1a");
+          elps(x + s*0.09 - legOff, y + s*0.42, s*0.06, s*0.03, "#1a1a1a");
+          // marshmallow body (rounded rectangle)
+          const bw = s * 0.5, bh = s * 0.7;
+          const bx = x - bw / 2, by = y - bh * 0.7;
+          const r = s * 0.18;
+          ctx.fillStyle = "#fdfdfd";
+          ctx.strokeStyle = "#999"; ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(bx + r, by);
+          ctx.lineTo(bx + bw - r, by);
+          ctx.arcTo(bx + bw, by, bx + bw, by + r, r);
+          ctx.lineTo(bx + bw, by + bh - r);
+          ctx.arcTo(bx + bw, by + bh, bx + bw - r, by + bh, r);
+          ctx.lineTo(bx + r, by + bh);
+          ctx.arcTo(bx, by + bh, bx, by + bh - r, r);
+          ctx.lineTo(bx, by + r);
+          ctx.arcTo(bx, by, bx + r, by, r);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          // stick arms
+          const armOff = Math.sin(runFrame * 0.5) * s * 0.06;
+          ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = s * 0.035; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(bx, y - s*0.12);
+          ctx.lineTo(bx - s*0.12, y + s*0.02 + armOff); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(bx + bw, y - s*0.12);
+          ctx.lineTo(bx + bw + s*0.12, y + s*0.02 - armOff); ctx.stroke();
+          // brown hair tuft on top
+          ctx.fillStyle = "#5a3a1a";
+          ctx.beginPath();
+          ctx.moveTo(x - s*0.08, by + s*0.04);
+          ctx.quadraticCurveTo(x - s*0.05, by - s*0.14, x + s*0.04, by - s*0.1);
+          ctx.quadraticCurveTo(x + s*0.13, by - s*0.04, x + s*0.1, by + s*0.04);
+          ctx.closePath();
+          ctx.fill();
+          // eyes (dots, slightly larger - signature Odd1sOut style)
+          circ(x - s*0.09, y - s*0.22, s*0.025, "#000");
+          circ(x + s*0.09, y - s*0.22, s*0.025, "#000");
+          // tiny smile
+          ctx.strokeStyle = "#000"; ctx.lineWidth = s * 0.015; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.arc(x, y - s*0.14, s*0.04, 0.15, Math.PI - 0.15); ctx.stroke();
+        }
+
+        function drawPlayer(x, y, s, runFrame) {
+          if (selectedCharacter === "odd1sout") drawOdd1sOut(x, y, s, runFrame);
+          else drawJaiden(x, y, s, runFrame);
         }
 
         // Tree drawing for each biome
@@ -647,6 +790,7 @@
         let saved, lives, startTime, gameRunning;
         let frameCount, animalCooldown;
         let keys = {};
+        let selectedCharacter = "jaiden";
 
         function shuffle(arr) {
           const a = arr.slice();
@@ -674,10 +818,10 @@
 
           // Poachers stay at the bottom of the screen (chasing)
           poachers = [
-            { x: W * 0.18, y: H - 35, shootTimer: rand(60, 120), runFrame: 0 },
-            { x: W * 0.4,  y: H - 28, shootTimer: rand(90, 160), runFrame: 30 },
-            { x: W * 0.62, y: H - 32, shootTimer: rand(70, 140), runFrame: 60 },
-            { x: W * 0.84, y: H - 30, shootTimer: rand(100, 180), runFrame: 90 },
+            { x: W * 0.18, y: H - 35, shootTimer: rand(180, 280), runFrame: 0 },
+            { x: W * 0.4,  y: H - 28, shootTimer: rand(220, 340), runFrame: 30 },
+            { x: W * 0.62, y: H - 32, shootTimer: rand(200, 300), runFrame: 60 },
+            { x: W * 0.84, y: H - 30, shootTimer: rand(240, 360), runFrame: 90 },
           ];
 
           // Trees scattered along the road
@@ -775,7 +919,7 @@
               const dxb = player.x - p.x;
               const dyb = player.y - p.y;
               const len = Math.hypot(dxb, dyb) || 1;
-              const bSpeed = 5;
+              const bSpeed = 3.2;
               bullets.push({
                 x: p.x + 12,
                 y: p.y - 15,
@@ -783,7 +927,7 @@
                 vy: (dyb / len) * bSpeed,
                 size: 6,
               });
-              p.shootTimer = rand(110, 200);
+              p.shootTimer = rand(260, 420);
             }
           });
 
@@ -972,8 +1116,45 @@
 
         document.getElementById("playBtn").addEventListener("click", startGame);
 
+        // Character selection
+        document.querySelectorAll(".char-card").forEach((card) => {
+          card.addEventListener("click", () => {
+            document.querySelectorAll(".char-card").forEach((c) => c.classList.remove("selected"));
+            card.classList.add("selected");
+            selectedCharacter = card.dataset.char;
+          });
+        });
+
+        // Draw small previews of each character in their selection cards.
+        // Trick: the draw functions are closed over the main canvas ctx, so we
+        // render the character at the top-left of the main canvas, copy that
+        // region to each preview canvas, then redraw the main canvas.
+        function drawCharacterPreviews() {
+          const previews = [
+            { id: "charPrevJaiden", fn: drawJaiden },
+            { id: "charPrevOdd",    fn: drawOdd1sOut },
+          ];
+          previews.forEach(({ id, fn }) => {
+            const c = document.getElementById(id);
+            if (!c) return;
+            const pctx = c.getContext("2d");
+            pctx.fillStyle = "#fff";
+            pctx.fillRect(0, 0, c.width, c.height);
+            // Render character at the top-left of the main canvas
+            ctx.save();
+            ctx.clearRect(0, 0, c.width, c.height);
+            fn(c.width / 2, c.height / 2 + 18, 70, 0);
+            // Copy that region into the preview canvas
+            pctx.drawImage(canvas, 0, 0, c.width, c.height, 0, 0, c.width, c.height);
+            ctx.restore();
+          });
+          // Restore the main canvas
+          draw();
+        }
+
         initGame();
         draw();
+        drawCharacterPreviews();
       })();
 
       // ---------- GAME 2: Quiz ----------
