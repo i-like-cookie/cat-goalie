@@ -95,6 +95,36 @@
         line-height: 1.5;
       }
       .game-help strong { color: #ffe066; }
+      /* Hidden cheat bar — toggle with the ` (backtick) key */
+      .cheat-bar {
+        display: none;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        background: rgba(0,0,0,0.65);
+        border: 1px dashed #ffe066;
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 0.88rem;
+        color: #ffe066;
+      }
+      .cheat-bar.show { display: flex; }
+      .cheat-bar .cheat-title { font-weight: 700; letter-spacing: 0.5px; }
+      .cheat-bar button {
+        background: #ffe066;
+        color: #2d5016;
+        border: none;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: transform 0.1s ease, filter 0.1s ease;
+      }
+      .cheat-bar button:hover { filter: brightness(1.1); }
+      .cheat-bar button:active { transform: scale(0.94); }
+      .cheat-bar .cheat-hint { margin-left: auto; opacity: 0.7; font-size: 0.78rem; }
       .overlay {
         position: absolute;
         inset: 0;
@@ -315,6 +345,12 @@
           <strong>🎮 Controls:</strong> Left/Right (or A/D) to switch lanes. 3 lanes — pick the one with the animal!<br>
           <strong>🎯 Goal:</strong> Catch all 13 species → biome shifts each time → reach the helicopter to escape.<br>
           <strong>⚠️ Warning:</strong> Poachers chase you from behind and shoot 🔴 bullets. Dodge by changing lanes!
+        </div>
+        <div class="cheat-bar" id="cheatBar">
+          <span class="cheat-title">🐱 CHEATS</span>
+          <button id="cheatHeart" type="button">❤️ 999 Hearts (1)</button>
+          <button id="cheatSkip" type="button">⏭️ Skip Animal (2)</button>
+          <span class="cheat-hint">Press ` to hide</span>
         </div>
       </div>
 
@@ -1192,6 +1228,41 @@
           if (!gameRunning) return;
           player.lane = clamp(player.lane + delta, 0, 2);
         }
+
+        // ---- Hidden cheat bar (toggle with the ` backtick key) ----
+        function cheatAddHeart() {
+          if (!gameRunning) return;
+          lives = 999;
+          updateHUD();
+        }
+
+        function cheatSkipAnimal() {
+          if (!gameRunning || queue.length === 0) return;
+          // Mirror the normal "animal collected" logic without catching it
+          saved++;
+          queue.shift();
+          targetBiome = queue.length > 0 ? queue[0].biome : "plain";
+          if (currentBiome !== targetBiome) biomeT = 0;
+          animals = [];          // clear the on-screen animal; next spawns soon
+          animalCooldown = 20;
+          updateHUD();
+        }
+
+        const cheatBar = document.getElementById("cheatBar");
+        document.getElementById("cheatHeart").addEventListener("click", cheatAddHeart);
+        document.getElementById("cheatSkip").addEventListener("click", cheatSkipAnimal);
+
+        window.addEventListener("keydown", (e) => {
+          if (e.repeat) return;
+          if (e.key === "`" || e.key === "~") {
+            cheatBar.classList.toggle("show");
+            e.preventDefault();
+            return;
+          }
+          if (!cheatBar.classList.contains("show")) return;
+          if (e.key === "1") { cheatAddHeart(); e.preventDefault(); }
+          else if (e.key === "2") { cheatSkipAnimal(); e.preventDefault(); }
+        });
 
         window.addEventListener("keydown", (e) => {
           if (e.repeat) return;
