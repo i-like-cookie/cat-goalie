@@ -970,6 +970,7 @@ portal:{x:0,y:0,active:false},
 healSpring:{x:0,y:0},
 totalLevel:0,
 _wasOnWater:false,
+inForest:false,forestT:0,forestEncCD:120,_px:0,_py:0,
 };
  
 function getMoves(ta){
@@ -1117,6 +1118,8 @@ let pl={x:WW/2,y:WH/2,speed:2.5};
 let wfr=0,knifeT=0,knifeStabbing=false,knifeStabT=0;
 const KEYS={};
 const WILD_POOL=['poison_frog','monkey','crocodile','harpy','tapir','panther','gorilla','anaconda','capybara','otter','piranha','sloth','caiman','butterfly','spider_monkey'];
+// Creatures you can run into deep in the forest canopy
+const FOREST_POOL=['monkey','spider_monkey','gorilla','panther','sloth','harpy','anaconda','poison_frog','butterfly'];
 const FP={fov:Math.PI/2.4,rotSpd:.036,moveSpd:2.6};
 let fpAng=0;
  
@@ -1135,7 +1138,7 @@ updateHUD();renderTeamBar();setView('top');
  
 function buildMap(){
 wmap=[];
-for(let r=0;r<ROWS;r++){wmap[r]=[];for(let c=0;c<COLS;c++){const n=sn(c*.17,r*.17)+sn(c*.05,r*.05)*.5;let t=Math.floor(Math.random()*8);if(n>0.75)t='dense';else if(n>0.45)t='bush';else if(n<-0.6)t='water';wmap[r][c]=t;}}
+for(let r=0;r<ROWS;r++){wmap[r]=[];for(let c=0;c<COLS;c++){const n=sn(c*.17,r*.17)+sn(c*.05,r*.05)*.5;let t=Math.floor(Math.random()*8);if(n>0.68)t='dense';else if(n>0.42)t='bush';else if(n<-0.6)t='water';wmap[r][c]=t;}}
 const pc=Math.floor(pl.x/CELL),pr=Math.floor(pl.y/CELL);
 for(let dr=-3;dr<=3;dr++)for(let dc=-3;dc<=3;dc++){const rr=pr+dr,cc=pc+dc;if(rr>=0&&rr<ROWS&&cc>=0&&cc<COLS)wmap[rr][cc]=Math.floor(Math.random()*8);}
 }
@@ -1553,20 +1556,47 @@ drawLeaf(w*.2,h*.72,88,36,-.12,'rgba(36,120,16,.72)','rgba(70,180,35,.15)');
 drawLeaf(w*.78,h*.75,84,34,.17,'rgba(36,120,16,.68)','rgba(70,180,35,.14)');
 drawLeaf(-28,h*.79,78,32,-.4,'rgba(28,105,13,.82)','rgba(60,165,30,.12)');
  
-// Hanging vines from top
-ctx.strokeStyle='rgba(25,85,10,.5)'; ctx.lineWidth=2.8; ctx.lineCap='round';
-[w*.07,w*.27,w*.73,w*.93].forEach((vx,vi)=>{
-  ctx.beginPath(); ctx.moveTo(vx,0);
-  for(let vj=0;vj<h*.42;vj+=7){
-    ctx.lineTo(vx+Math.sin(vj*.17+vi*1.2)*7, vj);
-  }
+// ── OVERHEAD CANOPY & HANGING VINES ───────────────
+// A single vine that sways with time, hanging from topY down by `len`.
+function vine(vx,topY,len,phase,op,thick){
+  ctx.strokeStyle='rgba(25,85,10,'+op+')'; ctx.lineWidth=thick; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(vx,topY);
+  let ex=vx,ey=topY;
+  for(let vj=0;vj<len;vj+=7){ ex=vx+Math.sin(vj*.05+phase+wfr*.012)*9; ey=topY+vj; ctx.lineTo(ex,ey); }
   ctx.stroke();
-  // Leaf on vine end
-  ctx.fillStyle='rgba(48,140,22,.72)';
-  ctx.beginPath();
-  ctx.ellipse(vx+Math.sin(h*.06+vi)*7, h*.41, 13, 7, vi*.38, 0, Math.PI*2);
-  ctx.fill();
-});
+  // A leaf partway down and one at the tip
+  ctx.fillStyle='rgba(48,140,22,'+Math.min(1,op+.2)+')';
+  ctx.beginPath(); ctx.ellipse(vx+Math.sin(len*.5*.05+phase)*9,topY+len*.5,9,5,phase*1.4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(ex,ey,13,7,phase,0,Math.PI*2); ctx.fill();
+}
+if(G.inForest){
+  // Dense leafy ceiling across the top of the view
+  const ch=h*(.27+Math.sin(wfr*.01)*.006);
+  const cg=ctx.createLinearGradient(0,0,0,ch);
+  cg.addColorStop(0,'rgba(8,30,6,.97)');
+  cg.addColorStop(.6,'rgba(14,46,10,.9)');
+  cg.addColorStop(1,'rgba(20,64,14,0)');
+  ctx.fillStyle=cg; ctx.fillRect(0,0,w,ch);
+  // Lumpy underside — overlapping leaf blobs so the ceiling looks organic
+  for(let bi=0;bi<24;bi++){
+    const bx=(bi/23)*w + Math.sin(bi*2.1+wfr*.01)*10;
+    const by=ch*.72+Math.sin(bi*1.7)*ch*.2;
+    const br2=34+Math.sin(bi*1.3)*16;
+    ctx.fillStyle=['rgba(14,52,10,.92)','rgba(20,68,14,.86)','rgba(10,40,8,.92)'][bi%3];
+    ctx.beginPath(); ctx.ellipse(bx,by,br2,br2*.6,0,0,Math.PI*2); ctx.fill();
+  }
+  // Sun-flecks leaking through gaps in the canopy
+  for(let si=0;si<6;si++){const sx2=(si*173+wfr*.2)%w;ctx.fillStyle='rgba(220,255,170,.10)';ctx.beginPath();ctx.ellipse(sx2,ch*.42,18,10,0,0,Math.PI*2);ctx.fill();}
+  // Green enclosing vignette — feels hemmed in by trees
+  const vig=ctx.createRadialGradient(w/2,h*.5,h*.25,w/2,h*.5,h*.82);
+  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(4,24,4,.5)');
+  ctx.fillStyle=vig; ctx.fillRect(0,0,w,h);
+  // Many vines dangling down through the canopy
+  for(let vi=0;vi<11;vi++){ const vx=(vi/10)*w + Math.sin(vi*3.1)*22; vine(vx, ch*.55, h*(.3+(vi%3)*.12), vi*1.2, .6, 2.4+(vi%2)); }
+} else {
+  // Out in the open: a few vines still trail from the trees ahead
+  [w*.07,w*.27,w*.73,w*.93].forEach((vx,vi)=>vine(vx,0,h*.4,vi*1.2,.5,2.8));
+}
  
 // ── FP BILLBOARDS ────────────────────────────────
 // Coins
@@ -1903,6 +1933,29 @@ if(G.viewMode==='fp'){
 }
 if(KEYS['KeyF']){KEYS['KeyF']=false;tryStab();}
 if(KEYS['KeyT']){KEYS['KeyT']=false;throwAnimal();}
+// ── FOREST IMMERSION ──────────────────────────────
+// Count tree cover in a 5×5 area around the player. Walking into a thick
+// grove drops you into "the forest"; stepping out clears it (hysteresis
+// avoids flicker at the edge). Rare wild encounters fire as you move.
+{
+  let treeCount=0;
+  for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const rr=plTileR+dr,cc=plTileC+dc;if(rr>=0&&rr<ROWS&&cc>=0&&cc<COLS&&wmap[rr][cc]==='dense')treeCount++;}
+  const density=treeCount/25;
+  if(!G.inForest&&density>=0.28){G.inForest=true;G.forestT=0;G.forestEncCD=260;toast('🌳 You enter the deep forest — the canopy closes overhead.');}
+  else if(G.inForest&&density<0.13){G.inForest=false;toast('🌤️ You step back out into the open.');}
+  if(G.inForest){
+    G.forestT++;
+    const moved=Math.hypot(pl.x-G._px,pl.y-G._py);
+    if(moved>0.4&&!G.battleTriggered){
+      G.forestEncCD--;
+      if(G.forestEncCD<=0){
+        G.forestEncCD=240+Math.floor(Math.random()*180);
+        if(Math.random()<0.32){const id=FOREST_POOL[Math.floor(Math.random()*FOREST_POOL.length)];toast('🍃 Something rustles in the undergrowth!');triggerEncounter(()=>startWBattle(id));}
+      }
+    }
+  }
+  G._px=pl.x;G._py=pl.y;
+}
 wcoins.forEach(c=>{if(!c.col&&Math.hypot(c.x-pl.x,c.y-pl.y)<22){c.col=true;G.coins+=c.v;updateHUD();toast('🪙 +'+c.v+'!');}});
 // Portal proximity (top-down)
 if(G.portal.active&&G.viewMode==='top'){
