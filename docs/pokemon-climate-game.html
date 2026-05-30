@@ -971,7 +971,7 @@ healSpring:{x:0,y:0},
 totalLevel:0,
 _wasOnWater:false,
 inForest:false,forestT:0,forestEncCD:120,_px:0,_py:0,
-realm:'overworld',forestCooldown:0,_fgrass:[],_fbridge:[],
+realm:'overworld',forestCooldown:0,_fgrass:[],_fbridge:[],_ftrees:[],
 };
  
 function getMoves(ta){
@@ -1497,7 +1497,49 @@ for(let ray=0;ray<nr;ray++){
     ctx.fillStyle=lg; ctx.fillRect(xp,wt,sliceW,wallH);
   }
 }
- 
+
+// ── FOREST TREES (billboards) ─────────────────────
+// Render dense jungle tiles as recognizable trees — a brown trunk and a
+// rounded layered canopy — depth-sorted far→near with an occlusion check,
+// so the forest reads as individual trees instead of a green wall.
+if(G.realm==='forest'&&G._ftrees&&G._ftrees.length){
+  const tcolOf=v=>Math.floor(v/CELL);
+  const treeVisible=(tx,ty,d)=>{
+    const steps=Math.floor(d/9); if(steps<2)return true;
+    const tcol=tcolOf(tx),trow=tcolOf(ty), sxx=(tx-pl.x)/steps, syy=(ty-pl.y)/steps;
+    for(let i=2;i<steps;i++){
+      const cc=tcolOf(pl.x+sxx*i),rr=tcolOf(pl.y+syy*i);
+      if(rr<0||rr>=ROWS||cc<0||cc>=COLS)return false;
+      if(cc===tcol&&rr===trow)return true;
+      const tt=wmap[rr][cc]; if(tt==='dense'||tt==='water')return false;
+    }
+    return true;
+  };
+  const drawFPTree=(x,gy,s,seed,br)=>{
+    const v=(seed%5)/5, tw=Math.max(2,s*.11), th=s*.92, cR=s*(.52+v*.12), cyTop=gy-th-cR*.35;
+    ctx.fillStyle='rgba(0,0,0,.22)';ctx.beginPath();ctx.ellipse(x,gy,s*.42,s*.08,0,0,Math.PI*2);ctx.fill();
+    // trunk
+    ctx.fillStyle=`rgb(${Math.floor(96*br)},${Math.floor(60*br)},${Math.floor(28*br)})`;
+    ctx.beginPath();ctx.moveTo(x-tw,gy);ctx.lineTo(x+tw,gy);ctx.lineTo(x+tw*.55,gy-th);ctx.lineTo(x-tw*.55,gy-th);ctx.closePath();ctx.fill();
+    ctx.strokeStyle=`rgba(${Math.floor(38*br)},${Math.floor(22*br)},8,.7)`;ctx.lineWidth=Math.max(1,tw*.35);
+    ctx.beginPath();ctx.moveTo(x-tw*.15,gy-th*.1);ctx.lineTo(x,gy-th*.95);ctx.stroke();
+    // canopy — dark outline pass then layered green blobs
+    const blobs=[[0,0,1],[-.55,.22,.62],[.55,.2,.62],[0,-.4,.6],[-.3,-.12,.5],[.32,-.1,.5]];
+    blobs.forEach(([bx,by,r])=>{ctx.fillStyle='rgba(10,34,8,'+br+')';ctx.beginPath();ctx.ellipse(x+bx*cR,cyTop+by*cR,cR*r+1.5,cR*r*.84+1.5,0,0,Math.PI*2);ctx.fill();});
+    const gc=[`rgb(${Math.floor(28*br)},${Math.floor(96*br)},${Math.floor(22*br)})`,`rgb(${Math.floor(44*br)},${Math.floor(134*br)},${Math.floor(32*br)})`,`rgb(${Math.floor(62*br)},${Math.floor(164*br)},${Math.floor(44*br)})`];
+    blobs.forEach(([bx,by,r],i)=>{ctx.fillStyle=gc[i%3];ctx.beginPath();ctx.ellipse(x+bx*cR,cyTop+by*cR,cR*r,cR*r*.84,0,0,Math.PI*2);ctx.fill();});
+    ctx.fillStyle='rgba(190,240,130,'+(br*.16)+')';ctx.beginPath();ctx.ellipse(x-cR*.25,cyTop-cR*.32,cR*.42,cR*.3,0,0,Math.PI*2);ctx.fill();
+  };
+  const tl=G._ftrees.map(o=>({o,d:Math.hypot(o.x-pl.x,o.y-pl.y)})).filter(z=>z.d>CELL*.35&&z.d<360).sort((a,b)=>b.d-a.d);
+  tl.forEach(({o,d})=>{
+    let ta=Math.atan2(o.y-pl.y,o.x-pl.x)-fpAng; while(ta>Math.PI)ta-=Math.PI*2; while(ta<-Math.PI)ta+=Math.PI*2;
+    if(Math.abs(ta)>FP.fov/2*1.18)return;
+    if(!treeVisible(o.x,o.y,d))return;
+    const sx=w/2+ta/(FP.fov/2)*w/2, sz=Math.min(h*1.05,h*15/Math.max(20,d)), groundY=h*.5+sz*.28;
+    drawFPTree(sx,groundY,sz,o.seed,Math.max(.42,1-d/360));
+  });
+}
+
 // ── FOREGROUND VEGETATION ─────────────────────────
 // Draw realistic layered ferns and tropical plants
 function drawFern(ox,oy,dir,count,baseLen){
@@ -2082,13 +2124,14 @@ function genForest(){
   });
   for(let r=ROWS-8;r>4;r-=4){ if(m[r][cx]===2)m[r][cx]='tgrass'; }   // some grass on the path
   for(let r=ROWS-4;r<ROWS;r++)for(let c=cx-2;c<=cx+2;c++){ if(c>0&&c<COLS-1) m[r][c]=2; } // keep spawn clear
-  // Cache grass & bridge tile centres for first-person rendering
-  const grass=[],bridge=[];
+  // Cache grass, bridge & tree tile centres for first-person rendering
+  const grass=[],bridge=[],trees=[];
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
     if(m[r][c]==='tgrass') grass.push({x:c*CELL+CELL/2,y:r*CELL+CELL/2});
     else if(m[r][c]==='bridge') bridge.push({x:c*CELL+CELL/2,y:r*CELL+CELL/2});
+    else if(m[r][c]==='dense') trees.push({x:c*CELL+CELL/2,y:r*CELL+CELL/2,seed:(c*73+r*131)%1000});
   }
-  G._fgrass=grass; G._fbridge=bridge;
+  G._fgrass=grass; G._fbridge=bridge; G._ftrees=trees;
   return m;
 }
 function fadeRealm(cb){
@@ -2204,10 +2247,9 @@ wc.addEventListener('click',e=>{
 });
  
 const fc=document.getElementById('fpc');
-fc.addEventListener('click',()=>{if(G.viewMode==='fp'){if(document.pointerLockElement===fc)tryStab();else fc.requestPointerLock();}});
-document.addEventListener('mousemove',e=>{if(document.pointerLockElement===fc&&G.viewMode==='fp')fpAng+=e.movementX*.003;});
-document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement===fc)toast('🖱️ Mouse locked — move=look, click=blast');});
-document.addEventListener('keydown',e=>{if(e.code==='Escape'||e.code==='KeyP')if(document.pointerLockElement)document.exitPointerLock();});
+// No pointer lock — click to blast, and move the mouse over the view to look around
+fc.addEventListener('click',()=>{if(G.viewMode==='fp')tryStab();});
+fc.addEventListener('mousemove',e=>{if(G.viewMode==='fp')fpAng+=e.movementX*.003;});
 }
  
 function shootRayAngle(ang){
