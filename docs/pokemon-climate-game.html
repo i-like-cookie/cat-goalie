@@ -1324,22 +1324,32 @@ if(G.biome!==3){
 }
  
 // ── DISTANT TREELINE ─────────────────────────────
-// 3-layer distant forest silhouette with depth
+// 3-layer distant forest silhouette; each tree is built from several
+// overlapping canopy blobs so the crown looks lumpy and organic, not a
+// smooth egg. Farther layers are smaller, hazier and sit lower (depth).
 for(let layer=0;layer<3;layer++){
-  const opacity=0.35+layer*.18;
-  const yBase=h*.488-layer*h*.018;
-  const treeH=38+layer*18;
-  const col=['rgba(22,68,14,','rgba(30,90,18,','rgba(42,118,22,'][layer];
-  for(let ti=0;ti<22+layer*4;ti++){
-    const tx=(ti/(21+layer*4))*w*1.08-w*.04 + Math.sin(ti*1.9+layer)*12;
-    const th=treeH+Math.sin(ti*2.3+layer)*14;
-    const tw=10+Math.sin(ti*1.7)*6+layer*3;
-    ctx.fillStyle=col+opacity+')';
-    // Tree canopy ellipse
-    ctx.beginPath(); ctx.ellipse(tx,yBase-th*.4,tw,th*.72,0,0,Math.PI*2); ctx.fill();
+  const opacity=0.32+layer*.2;
+  const yBase=h*.5-layer*h*.016;
+  const treeH=44+layer*22;
+  const col=['22,68,14','30,90,18','42,118,22'][layer];
+  const n=18+layer*5;
+  for(let ti=0;ti<n;ti++){
+    const tx=(ti/(n-1))*w*1.12-w*.06 + Math.sin(ti*1.9+layer*2.1)*10;
+    const th=treeH+Math.sin(ti*2.3+layer)*16;
+    const tw=12+Math.sin(ti*1.7)*5+layer*3;
+    const topY=yBase-th;
     // Trunk
-    ctx.fillStyle='rgba(30,15,5,'+(opacity*.7)+')';
-    ctx.fillRect(tx-tw*.1,yBase-th*.45,tw*.2,th*.5);
+    ctx.fillStyle='rgba(34,20,8,'+(opacity*.8)+')';
+    ctx.fillRect(tx-tw*.08,yBase-th*.5,tw*.16,th*.5);
+    // Layered canopy — overlapping blobs build an irregular crown
+    ctx.fillStyle='rgba('+col+','+opacity+')';
+    ctx.beginPath(); ctx.ellipse(tx,topY+th*.45,tw,th*.5,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(tx-tw*.55,topY+th*.62,tw*.62,th*.4,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(tx+tw*.55,topY+th*.6,tw*.62,th*.42,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(tx+Math.sin(ti)*tw*.3,topY+th*.2,tw*.6,th*.32,0,0,Math.PI*2); ctx.fill();
+    // Faint sunlit top-left
+    ctx.fillStyle='rgba(150,210,90,'+(opacity*.22)+')';
+    ctx.beginPath(); ctx.ellipse(tx-tw*.25,topY+th*.16,tw*.5,th*.2,0,0,Math.PI*2); ctx.fill();
   }
 }
  
@@ -1389,12 +1399,17 @@ for(let ray=0;ray<nr;ray++){
   const br=Math.max(.38,1-dist/310);
  
   if(hitType==='dense'){
-    // Realistic tree rendering: trunk center, canopy sides, dark interior
+    // Realistic tree: rounded canopy crown over a central trunk.
     const trunkZone=hitFrac>0.3&&hitFrac<0.7;
     const innerZone=hitFrac>0.4&&hitFrac<0.6;
     const xp=ray*(w/nr);
     const sliceW=Math.ceil(w/nr)+1;
- 
+    // Crown shaping: canopy columns get shorter toward the outer edges, so
+    // the background peeks through and the treetop reads as a rounded dome.
+    const edgeD=trunkZone?0:(hitFrac<0.5?0.3-hitFrac:hitFrac-0.7);
+    const crownDip=wallH*0.62*edgeD;
+    const topY=wt+crownDip, ch2=wallH-crownDip;
+
     if(innerZone){
       // Dark trunk core
       const r2=br*.6;
@@ -1409,20 +1424,25 @@ for(let ray=0;ray<nr;ray++){
       const gl=[[105,215,55],[88,192,44],[72,168,36]][Math.floor(heightFrac*3)%3];
       ctx.fillStyle=`rgb(${Math.floor(gl[0]*br)},${Math.floor(gl[1]*br)},${Math.floor(gl[2]*br)})`;
     }
-    ctx.fillRect(xp,wt,sliceW,wallH);
- 
-    // Canopy subsurface light scatter
-    if(!trunkZone){
-      const lg=ctx.createLinearGradient(0,wt,0,wt+wallH);
-      lg.addColorStop(0,'rgba(200,255,140,.16)');
-      lg.addColorStop(.3,'rgba(0,0,0,0)');
-      lg.addColorStop(1,'rgba(0,0,0,.14)');
-      ctx.fillStyle=lg; ctx.fillRect(xp,wt,sliceW,wallH);
-      // Canopy leaf dapple texture
-      if(Math.floor(xp)%5===0){
-        ctx.fillStyle='rgba(0,0,0,.08)';
-        ctx.fillRect(xp,wt+wallH*.3,sliceW,wallH*.12);
+    ctx.fillRect(xp,topY,sliceW,ch2);
+
+    if(trunkZone){
+      // Vertical bark striations for texture
+      if(Math.floor(xp)%4===0){
+        ctx.fillStyle='rgba(20,10,3,.28)';
+        ctx.fillRect(xp,topY,Math.max(1,sliceW*.4),ch2);
       }
+    } else {
+      // Canopy subsurface light scatter
+      const lg=ctx.createLinearGradient(0,topY,0,topY+ch2);
+      lg.addColorStop(0,'rgba(210,255,150,.20)');
+      lg.addColorStop(.3,'rgba(0,0,0,0)');
+      lg.addColorStop(1,'rgba(0,0,0,.16)');
+      ctx.fillStyle=lg; ctx.fillRect(xp,topY,sliceW,ch2);
+      // Leaf-cluster dapple — irregular dark/light flecks
+      const dn=(Math.floor(xp)*7+hitC*13+hitR*5)%9;
+      if(dn===0){ctx.fillStyle='rgba(20,60,10,.30)';ctx.fillRect(xp,topY+ch2*.28,sliceW,ch2*.16);}
+      else if(dn===4){ctx.fillStyle='rgba(180,240,120,.18)';ctx.fillRect(xp,topY+ch2*.12,sliceW,ch2*.10);}
     }
   } else if(hitType==='water'){
     // Water in FP — dark blue with animated shimmer
