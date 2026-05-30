@@ -423,24 +423,57 @@ tree(ctx,cx,cy,s=1,seed=0){
  
 // Draw recognizable animal at given canvas (for battle screen)
 animal(ctx,id,x,y,scale,flip,bobOffset){
-  ctx.save();if(flip){ctx.translate(x*2,0);ctx.scale(-1,1);}
   const b=bobOffset||0;
+  // Enhanced render: draw the animal to an offscreen buffer, then add form
+  // shading (lit top, shaded belly) over just its silhouette, a soft dark
+  // outline, and a ground shadow — lifting every species at once. Falls back
+  // to a plain draw if offscreen canvases aren't available.
+  try{
+    const S=Math.max(80,Math.round(scale*240));
+    const off=document.createElement('canvas'); off.width=S; off.height=S;
+    const o=off.getContext('2d');
+    this._raw(o,id,S/2,S/2,scale);
+    // Form shading — source-atop confines it to the drawn pixels
+    o.globalCompositeOperation='source-atop';
+    const lg=o.createLinearGradient(0,S*.08,0,S*.94);
+    lg.addColorStop(0,'rgba(255,255,238,.30)');
+    lg.addColorStop(.5,'rgba(255,255,255,0)');
+    lg.addColorStop(1,'rgba(0,0,0,.38)');
+    o.fillStyle=lg; o.fillRect(0,0,S,S);
+    o.globalCompositeOperation='source-over';
+    // Ground shadow
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,.26)';
+    ctx.beginPath(); ctx.ellipse(x,y+b+scale*20,scale*34,scale*8,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+    // Blit with a soft dark outline (drop shadow), honouring flip
+    ctx.save();
+    if(flip){ctx.translate(x*2,0);ctx.scale(-1,1);}
+    ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=Math.max(2,scale*2.5);
+    ctx.drawImage(off, x-S/2, y+b-S/2);
+    ctx.restore();
+  }catch(e){
+    ctx.save(); if(flip){ctx.translate(x*2,0);ctx.scale(-1,1);}
+    this._raw(ctx,id,x,y+b,scale);
+    ctx.restore();
+  }
+},
+_raw(ctx,id,x,y,scale){
   switch(id){
     case 'jaguar':case 'spirit_jaguar':case 'relic_jaguar':
-      this._jaguar(ctx,x,y+b,scale,id==='spirit_jaguar'||id==='relic_jaguar');break;
-    case 'macaw':case 'golden_macaw':this._macaw(ctx,x,y+b,scale,id==='golden_macaw');break;
-    case 'anaconda':case 'titan_anaconda':this._anaconda(ctx,x,y+b,scale,id==='titan_anaconda');break;
-    case 'capybara':case 'elder_capybara':this._capybara(ctx,x,y+b,scale,id==='elder_capybara');break;
-    case 'poison_frog':case 'venom_titan':this._frog(ctx,x,y+b,scale,id==='venom_titan');break;
-    case 'monkey':case 'silverback':this._monkey(ctx,x,y+b,scale,id==='silverback');break;
-    case 'crocodile':case 'caiman':case 'giant_croc':this._croc(ctx,x,y+b,scale,id==='giant_croc');break;
-    case 'panther':case 'shadow_panther':this._panther(ctx,x,y+b,scale,true);break;
-    case 'gorilla':this._gorilla(ctx,x,y+b,scale,false);break;
-    case 'harpy':case 'storm_eagle':case 'toucan':this._eagle(ctx,x,y+b,scale,id==='storm_eagle');break;
-    case 'tapir':case 'jungle_titan':this._tapir(ctx,x,y+b,scale,id==='jungle_titan');break;
-    default:this._generic(ctx,x,y+b,scale,id);
+      this._jaguar(ctx,x,y,scale,id==='spirit_jaguar'||id==='relic_jaguar');break;
+    case 'macaw':case 'golden_macaw':this._macaw(ctx,x,y,scale,id==='golden_macaw');break;
+    case 'anaconda':case 'titan_anaconda':this._anaconda(ctx,x,y,scale,id==='titan_anaconda');break;
+    case 'capybara':case 'elder_capybara':this._capybara(ctx,x,y,scale,id==='elder_capybara');break;
+    case 'poison_frog':case 'venom_titan':this._frog(ctx,x,y,scale,id==='venom_titan');break;
+    case 'monkey':case 'silverback':this._monkey(ctx,x,y,scale,id==='silverback');break;
+    case 'crocodile':case 'caiman':case 'giant_croc':this._croc(ctx,x,y,scale,id==='giant_croc');break;
+    case 'panther':case 'shadow_panther':this._panther(ctx,x,y,scale,true);break;
+    case 'gorilla':this._gorilla(ctx,x,y,scale,false);break;
+    case 'harpy':case 'storm_eagle':case 'toucan':this._eagle(ctx,x,y,scale,id==='storm_eagle');break;
+    case 'tapir':case 'jungle_titan':this._tapir(ctx,x,y,scale,id==='jungle_titan');break;
+    default:this._generic(ctx,x,y,scale,id);
   }
-  ctx.restore();
 },
  
 _jaguar(ctx,x,y,s,legend){
@@ -971,7 +1004,7 @@ healSpring:{x:0,y:0},
 totalLevel:0,
 _wasOnWater:false,
 inForest:false,forestT:0,forestEncCD:120,_px:0,_py:0,
-realm:'overworld',forestCooldown:0,_fgrass:[],_fbridge:[],_ftrees:[],
+realm:'overworld',forestCooldown:0,_fgrass:[],_fbridge:[],_ftrees:[],_fexit:null,
 };
  
 function getMoves(ta){
@@ -1702,6 +1735,35 @@ if(G.realm==='forest'&&G._fbridge&&G._fbridge.length){
   });
 }
 
+// Exit signpost (forest realm) — clearly marks the way out, in the clearing
+if(G.realm==='forest'&&G._fexit){
+  const ex=G._fexit, dxe=ex.x-pl.x, dye=ex.y-pl.y, de=Math.hypot(dxe,dye);
+  let ea=Math.atan2(dye,dxe)-fpAng; while(ea>Math.PI)ea-=Math.PI*2; while(ea<-Math.PI)ea+=Math.PI*2;
+  if(de<460&&Math.abs(ea)<FP.fov/2*1.12){
+    const sx=w/2+ea/(FP.fov/2)*w/2, sz=Math.min(190,h*16/Math.max(22,de)), gy=h*.5+sz*.32, pulse=.6+Math.sin(wfr*.12)*.4;
+    ctx.save();
+    ctx.shadowBlur=sz*.5*pulse; ctx.shadowColor='rgba(120,255,130,.9)';
+    ctx.fillStyle='#6b4422'; ctx.fillRect(sx-sz*.34,gy-sz*.95,sz*.08,sz*.95); ctx.fillRect(sx+sz*.26,gy-sz*.95,sz*.08,sz*.95);
+    ctx.fillStyle='#d8b066'; ctx.fillRect(sx-sz*.46,gy-sz*1.04,sz*.92,sz*.42);
+    ctx.restore();
+    ctx.strokeStyle='#3a2410'; ctx.lineWidth=Math.max(1,sz*.02); ctx.strokeRect(sx-sz*.46,gy-sz*1.04,sz*.92,sz*.42);
+    ctx.fillStyle='#2a1a08'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font='bold '+Math.max(8,Math.floor(sz*.15))+'px Arial'; ctx.fillText('EXIT ↓',sx,gy-sz*.9);
+    ctx.font=Math.max(6,Math.floor(sz*.085))+'px Arial'; ctx.fillText('Leave Forest',sx,gy-sz*.72);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  }
+}
+// Forest HUD hint — always tells you how to leave
+if(G.realm==='forest'){
+  ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='bold 13px Arial';
+  const msg='↓ Head south to the EXIT sign to leave the forest';
+  const tw2=ctx.measureText(msg).width+24;
+  ctx.fillStyle='rgba(6,24,8,.62)'; ctx.fillRect(w/2-tw2/2,10,tw2,24);
+  ctx.strokeStyle='rgba(120,255,120,.5)'; ctx.lineWidth=1; ctx.strokeRect(w/2-tw2/2,10,tw2,24);
+  ctx.fillStyle='#cfffcf'; ctx.fillText(msg,w/2,23);
+  ctx.restore();
+}
+
 // Wild animals
 wanimals.forEach(wa=>{
   if(!wa.active)return;
@@ -2132,6 +2194,7 @@ function genForest(){
     else if(m[r][c]==='dense') trees.push({x:c*CELL+CELL/2,y:r*CELL+CELL/2,seed:(c*73+r*131)%1000});
   }
   G._fgrass=grass; G._fbridge=bridge; G._ftrees=trees;
+  G._fexit={x:WW/2,y:WH-CELL*0.3};   // signpost at the southern clearing edge
   return m;
 }
 function fadeRealm(cb){
