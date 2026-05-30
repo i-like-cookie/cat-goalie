@@ -56,6 +56,42 @@
       }
       .game .desc { color: #555; margin-bottom: 20px; }
 
+      /* FEATURED GAME: Against the Poachers (embedded via iframe) */
+      .amazon-game {
+        background: linear-gradient(135deg, #0b2e13, #1f5e2a) !important;
+        color: #eafbe7;
+      }
+      .amazon-game h2 { color: #9cff7a !important; }
+      .amazon-game .desc { color: #d6f5cf !important; }
+      .embed-wrap {
+        position: relative;
+        width: 100%;
+        /* 16:10 aspect ratio keeps the game window a nice shape on any screen */
+        aspect-ratio: 16 / 10;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 4px solid #0a1f0c;
+        background: #020d03;
+      }
+      .game-embed {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      .fullscreen-link {
+        display: inline-block;
+        margin-top: 16px;
+        background: #27ae60;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .fullscreen-link:hover { background: #1e8449; }
+
       /* GAME 1: Save the Animals (poacher escape) */
       .poacher-game {
         background: linear-gradient(135deg, #2d5016, #4a7c2e) !important;
@@ -296,6 +332,28 @@
     </header>
 
     <div class="games">
+      <!-- FEATURED GAME: Against the Poachers (Amazon open-world adventure) -->
+      <div class="game amazon-game">
+        <h2>🌳 Featured: Against the Poachers</h2>
+        <p class="desc">
+          An open-world Amazon adventure! Explore the rainforest, take on
+          poachers, and learn how the world's largest rainforest shapes our
+          climate. Click into the window below to play, or open it fullscreen.
+        </p>
+        <div class="embed-wrap">
+          <iframe
+            class="game-embed"
+            src="pokemon-climate-game.html"
+            title="Against the Poachers — Amazon Adventure"
+            loading="lazy"
+            allowfullscreen
+          ></iframe>
+        </div>
+        <a class="fullscreen-link" href="pokemon-climate-game.html" target="_blank" rel="noopener">
+          ⛶ Open fullscreen in a new tab
+        </a>
+      </div>
+
       <!-- GAME 1: Save the Animals (Poacher Escape) -->
       <div class="game poacher-game">
         <h2>🚁 Game 1: Save the Animals</h2>
