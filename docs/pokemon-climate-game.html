@@ -971,6 +971,7 @@ healSpring:{x:0,y:0},
 totalLevel:0,
 _wasOnWater:false,
 inForest:false,forestT:0,forestEncCD:120,_px:0,_py:0,
+realm:'overworld',forestCooldown:0,_fgrass:[],_fbridge:[],
 };
  
 function getMoves(ta){
@@ -1224,6 +1225,15 @@ if(t==='water'){
   ctx.fillStyle='rgba(60,150,30,.6)';ctx.beginPath();ctx.ellipse(x+CELL*.5,y+CELL*.6,CELL*.38,CELL*.28,0,0,Math.PI*2);ctx.fill();
   ctx.fillStyle='rgba(80,180,40,.4)';ctx.beginPath();ctx.ellipse(x+CELL*.3,y+CELL*.38,CELL*.24,CELL*.18,0,0,Math.PI*2);ctx.fill();
   if((c*3+r*7)%11===0){ctx.fillStyle='rgba(255,200,50,.65)';ctx.beginPath();ctx.arc(x+CELL*.7,y+CELL*.6,CELL*.07,0,Math.PI*2);ctx.fill();}
+} else if(t==='bridge'){
+  // Log bridge over the river
+  const wg=ctx.createLinearGradient(x,y,x,y+CELL);wg.addColorStop(0,'#1a4a70');wg.addColorStop(1,'#081e38');ctx.fillStyle=wg;ctx.fillRect(x,y,CELL,CELL);
+  for(let lgi=0;lgi<4;lgi++){const ly=y+lgi*CELL*.26;ctx.fillStyle='#6b4422';ctx.fillRect(x,ly,CELL,CELL*.2);ctx.strokeStyle='rgba(40,24,10,.6)';ctx.lineWidth=1;ctx.strokeRect(x,ly,CELL,CELL*.2);}
+} else if(t==='tgrass'){
+  // Tall grass — encounter zone
+  ctx.fillStyle=G.biome===3?'#15251a':'#357420';ctx.fillRect(x,y,CELL,CELL);
+  ctx.strokeStyle='rgba(46,160,46,.9)';ctx.lineWidth=1.4;ctx.lineCap='round';
+  for(let b=0;b<6;b++){const bx=x+CELL*(.14+b*.14),sw=Math.sin(wfr*.06+b+c*.3)*4;ctx.beginPath();ctx.moveTo(bx,y+CELL*.92);ctx.quadraticCurveTo(bx+sw*.5,y+CELL*.5,bx+sw,y+CELL*.16);ctx.stroke();}
 } else {
   // Grass — biome-tinted
   const grassColors=['#4a9e30','#52aa36','#48962e','#56b03c','#44922c','#4e9e32','#50a434','#46982e'];
@@ -1246,6 +1256,8 @@ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
   if(t==='water')ctx.fillStyle='#4a8ec8';
   else if(t==='dense')ctx.fillStyle='#2a6a18';
   else if(t==='bush')ctx.fillStyle='#3d8822';
+  else if(t==='tgrass')ctx.fillStyle='#2f8a24';
+  else if(t==='bridge')ctx.fillStyle='#6b4422';
   else ctx.fillStyle='#4a9e30';
   ctx.fillRect(c*sx,r*sy,sx+.5,sy+.5);
 }
@@ -1619,6 +1631,35 @@ wcoins.forEach(coin=>{
   if(d2<28&&!G.battleTriggered){G.battleTriggered=true;coin.col=true;G.coins+=coin.v;updateHUD();}
 });
  
+// Tall grass clumps (forest realm) — billboards, far→near so near ones overlap
+if(G.realm==='forest'&&G._fgrass&&G._fgrass.length){
+  const gl=G._fgrass.map(g=>({g,d:Math.hypot(g.x-pl.x,g.y-pl.y)})).filter(o=>o.d<240).sort((a,b)=>b.d-a.d);
+  gl.forEach(({g,d})=>{
+    let ga=Math.atan2(g.y-pl.y,g.x-pl.x)-fpAng; while(ga>Math.PI)ga-=Math.PI*2; while(ga<-Math.PI)ga+=Math.PI*2;
+    if(Math.abs(ga)>FP.fov/2*1.06)return;
+    const sx=w/2+ga/(FP.fov/2)*w/2, sz=Math.min(96,h*9/Math.max(16,d)), gy=h*.5+sz*.42, op=Math.max(.3,1-d/240);
+    for(let bi=0;bi<9;bi++){
+      const bx=sx+(bi-4)*sz*.1, sway=Math.sin(wfr*.05+bi+g.x*.01)*sz*.12;
+      ctx.strokeStyle='rgba('+(40+bi*3)+','+(150+bi*7)+',40,'+op+')';
+      ctx.lineWidth=Math.max(1.2,sz*.05); ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(bx,gy); ctx.quadraticCurveTo(bx+sway*.5,gy-sz*.4,bx+sway,gy-sz*.85); ctx.stroke();
+    }
+  });
+}
+
+// Log bridge (forest realm) — plank billboards over the river
+if(G.realm==='forest'&&G._fbridge&&G._fbridge.length){
+  const bl=G._fbridge.map(b=>({b,d:Math.hypot(b.x-pl.x,b.y-pl.y)})).filter(o=>o.d<280).sort((a,b)=>b.d-a.d);
+  bl.forEach(({b,d})=>{
+    let ba=Math.atan2(b.y-pl.y,b.x-pl.x)-fpAng; while(ba>Math.PI)ba-=Math.PI*2; while(ba<-Math.PI)ba+=Math.PI*2;
+    if(Math.abs(ba)>FP.fov/2*1.1)return;
+    const sx=w/2+ba/(FP.fov/2)*w/2, sz=Math.min(160,h*12/Math.max(16,d)), gy=h*.5+sz*.32, op=Math.max(.4,1-d/280);
+    ctx.fillStyle='rgba(96,60,28,'+op+')'; ctx.fillRect(sx-sz*.55,gy,sz*1.1,sz*.2);
+    ctx.fillStyle='rgba(70,42,18,'+op+')'; for(let pi=0;pi<4;pi++) ctx.fillRect(sx-sz*.55+pi*sz*.28,gy,sz*.04,sz*.2);
+    ctx.fillStyle='rgba(135,92,46,'+(op*.7)+')'; ctx.fillRect(sx-sz*.55,gy,sz*1.1,sz*.045);
+  });
+}
+
 // Wild animals
 wanimals.forEach(wa=>{
   if(!wa.active)return;
@@ -1933,30 +1974,39 @@ if(G.viewMode==='fp'){
 }
 if(KEYS['KeyF']){KEYS['KeyF']=false;tryStab();}
 if(KEYS['KeyT']){KEYS['KeyT']=false;throwAnimal();}
-// ── FOREST IMMERSION ──────────────────────────────
-// Count tree cover in a 5×5 area around the player. Walking into a thick
-// grove drops you into "the forest"; stepping out clears it (hysteresis
-// avoids flicker at the edge). Rare wild encounters fire as you move.
-{
-  let treeCount=0;
-  for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const rr=plTileR+dr,cc=plTileC+dc;if(rr>=0&&rr<ROWS&&cc>=0&&cc<COLS&&wmap[rr][cc]==='dense')treeCount++;}
-  const density=treeCount/25;
-  if(!G.inForest&&density>=0.28){G.inForest=true;G.forestT=0;G.forestEncCD=260;toast('🌳 You enter the deep forest — the canopy closes overhead.');}
-  else if(G.inForest&&density<0.13){G.inForest=false;toast('🌤️ You step back out into the open.');}
-  if(G.inForest){
-    G.forestT++;
+// ── REALM LOGIC ───────────────────────────────────
+// Tree density in a 5×5 area around the player drives both the overworld
+// "step into a grove" trigger and, inside the forest realm, how closed the
+// canopy feels.
+let treeCount=0;
+for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const rr=plTileR+dr,cc=plTileC+dc;if(rr>=0&&rr<ROWS&&cc>=0&&cc<COLS&&wmap[rr]&&wmap[rr][cc]==='dense')treeCount++;}
+const density=treeCount/25;
+if(G.realm==='overworld'){
+  // Walking into a thick grove blacks out and teleports to the forest realm
+  if(G.forestCooldown>0)G.forestCooldown--;
+  else if(density>=0.32&&!G.battleTriggered){enterForest();}
+} else {
+  // Forest realm: canopy closes among the trees, opens over clearings
+  G.inForest=density>=0.16;
+  if(G.inForest)G.forestT++;
+  // Returning to the southern clearing edge leaves the forest
+  if(pl.y>WH-CELL*0.7){exitForest();}
+  // Tall-grass encounters — only while moving through a tall-grass tile
+  const onTG=(plTileR>=0&&plTileR<ROWS&&plTileC>=0&&plTileC<COLS&&wmap[plTileR]&&wmap[plTileR][plTileC]==='tgrass');
+  if(onTG&&!G.battleTriggered){
     const moved=Math.hypot(pl.x-G._px,pl.y-G._py);
-    if(moved>0.4&&!G.battleTriggered){
+    if(moved>0.4){
       G.forestEncCD--;
       if(G.forestEncCD<=0){
-        G.forestEncCD=240+Math.floor(Math.random()*180);
-        if(Math.random()<0.32){const id=FOREST_POOL[Math.floor(Math.random()*FOREST_POOL.length)];toast('🍃 Something rustles in the undergrowth!');triggerEncounter(()=>startWBattle(id));}
+        G.forestEncCD=70+Math.floor(Math.random()*120);
+        if(Math.random()<0.5){const id=FOREST_POOL[Math.floor(Math.random()*FOREST_POOL.length)];toast('🍃 The tall grass rustles — wild encounter!');triggerEncounter(()=>startWBattle(id));}
       }
     }
   }
-  G._px=pl.x;G._py=pl.y;
 }
+G._px=pl.x;G._py=pl.y;
 wcoins.forEach(c=>{if(!c.col&&Math.hypot(c.x-pl.x,c.y-pl.y)<22){c.col=true;G.coins+=c.v;updateHUD();toast('🪙 +'+c.v+'!');}});
+if(G.realm==='overworld'){
 // Portal proximity (top-down)
 if(G.portal.active&&G.viewMode==='top'){
   if(Math.hypot(G.portal.x-pl.x,G.portal.y-pl.y)<28){advanceBiome();}
@@ -1968,7 +2018,10 @@ if(G.viewMode==='top'){
     if(wa.active){wa.x+=wa.vx;wa.y+=wa.vy;if(wa.x<30||wa.x>WW-30)wa.vx*=-1;if(wa.y<30||wa.y>WH-30)wa.vy*=-1;if(blocked(wa.x,wa.y)){wa.vx*=-1;wa.vy*=-1;}}
   });
 }
-// Poacher AI
+if(wcoins.every(c=>c.col))spawnCoins(30);
+if(wanimals.every(a=>!a.active))spawnWA(10);
+} // end overworld-only updates
+// Poacher AI — active in the overworld AND the forest realm
 let nearUnaware=false;
 const alertDist=G.crouching?58:105;
 G.poachers.forEach(p=>{
@@ -1992,11 +2045,87 @@ G.poachers.forEach(p=>{
 });
 const sp=document.getElementById('stabprompt');
 if(sp)sp.style.display=(nearUnaware&&G.viewMode==='top')?'block':'none';
-if(wcoins.every(c=>c.col))spawnCoins(30);
-if(wanimals.every(a=>!a.active))spawnWA(10);
-if(G.poachers.every(p=>!p.alive))spawnPoachers(4+G.wave);
+if(G.poachers.every(p=>!p.alive))spawnPoachers(G.realm==='forest'?3:4+G.wave);
 }
- 
+
+// ── FOREST REALM ────────────────────────────────────
+// Build a dedicated forest map: an open clearing at the bottom (spawn),
+// a treeline you walk up into, dense trees with a guaranteed central path,
+// a winding river, and scattered tall-grass encounter patches.
+function genForest(){
+  const m=[],cx=Math.floor(COLS/2);
+  for(let r=0;r<ROWS;r++){m[r]=[];for(let c=0;c<COLS;c++){
+    let t=2;
+    if(r===0||c===0||c===COLS-1) t='dense';          // walls around the edges
+    else if(r>=ROWS-5) t=2;                            // bottom: open clearing
+    else { const n=Math.sin(c*.55)*Math.cos(r*.5)+Math.sin((c+r)*.3)*.6+(Math.random()-.5)*.7; t=n>.45?'dense':2; }
+    m[r][c]=t;
+  }}
+  // Treeline band — the edge of the forest, with gaps to step through
+  for(let c=1;c<COLS-1;c++){ if(c%6!==3) m[ROWS-6][c]='dense'; }
+  // Winding river off to one side (water blocks movement, so it meanders),
+  // with a log bridge across it so you can reach the far bank.
+  let rc=cx+3; const bridgeRow=Math.floor(ROWS*.45); let bridgeCols=null;
+  for(let r=1;r<ROWS-7;r++){
+    rc=Math.max(3,Math.min(COLS-4,rc+Math.round(Math.sin(r*.55)*1.3)));
+    const c2=Math.min(COLS-4,rc+1);
+    if(r===bridgeRow){ m[r][rc]='bridge'; m[r][c2]='bridge'; bridgeCols=[rc,c2]; }
+    else { m[r][rc]='water'; if(r%2)m[r][c2]='water'; }
+  }
+  // Carve a guaranteed open corridor up the middle so you can always advance
+  for(let r=1;r<ROWS;r++)for(let c=cx-1;c<=cx+1;c++){ if(c>0&&c<COLS-1&&m[r][c]==='dense') m[r][c]=2; }
+  // Clear a level approach so both banks connect to the bridge
+  if(bridgeCols){ const lo=Math.min(cx-1,bridgeCols[0]-1), hi=Math.min(COLS-2,Math.max(bridgeCols[1]+2,cx+1)); for(let c=lo;c<=hi;c++){ if(c>0&&c<COLS-1&&m[bridgeRow][c]==='dense') m[bridgeRow][c]=2; } }
+  // Tall-grass patches off the corridor — these are the encounter zones
+  [[cx-7,7],[cx+7,9],[cx-5,15],[cx+6,17],[cx-2,ROWS-9]].forEach(([pc,pr])=>{
+    for(let dr=-1;dr<=1;dr++)for(let dc=-2;dc<=2;dc++){const rr=pr+dr,cc=pc+dc;if(rr>0&&rr<ROWS-1&&cc>0&&cc<COLS-1&&m[rr][cc]===2)m[rr][cc]='tgrass';}
+  });
+  for(let r=ROWS-8;r>4;r-=4){ if(m[r][cx]===2)m[r][cx]='tgrass'; }   // some grass on the path
+  for(let r=ROWS-4;r<ROWS;r++)for(let c=cx-2;c<=cx+2;c++){ if(c>0&&c<COLS-1) m[r][c]=2; } // keep spawn clear
+  // Cache grass & bridge tile centres for first-person rendering
+  const grass=[],bridge=[];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(m[r][c]==='tgrass') grass.push({x:c*CELL+CELL/2,y:r*CELL+CELL/2});
+    else if(m[r][c]==='bridge') bridge.push({x:c*CELL+CELL/2,y:r*CELL+CELL/2});
+  }
+  G._fgrass=grass; G._fbridge=bridge;
+  return m;
+}
+function fadeRealm(cb){
+  const e=document.getElementById('ef');
+  e.style.background='#000'; e.style.opacity='1';
+  setTimeout(()=>{ cb(); setTimeout(()=>{ e.style.opacity='0'; setTimeout(()=>{e.style.background='#fff';},240); },90); },430);
+}
+function enterForest(){
+  if(G.realm==='forest')return;
+  G.battleTriggered=true;                 // freeze the world during the fade
+  fadeRealm(()=>{
+    // Stash the overworld so we can return to it exactly as we left it
+    G._owMap=wmap; G._owPos={x:pl.x,y:pl.y}; G._owView=G.viewMode;
+    G._owCoins=wcoins; G._owAnimals=wanimals; G._owPoachers=G.poachers;
+    wcoins=[]; wanimals=[];
+    wmap=genForest();
+    pl.x=WW/2; pl.y=WH-CELL*2.4; fpAng=-Math.PI/2;   // spawn in clearing, facing into the forest
+    G.realm='forest'; G.inForest=false; G.forestEncCD=80;
+    spawnPoachers(3);                                  // poachers hunt here too — same storyline
+    if(G.viewMode!=='fp') setView('fp');             // the forest is first-person
+    G.battleTriggered=false;
+    toast('🌲 You push through the trees into a vast forest...');
+  });
+}
+function exitForest(){
+  if(G.realm!=='forest')return;
+  G.battleTriggered=true;
+  fadeRealm(()=>{
+    wmap=G._owMap||wmap;
+    wcoins=G._owCoins||wcoins; wanimals=G._owAnimals||wanimals; G.poachers=G._owPoachers||G.poachers;
+    if(G._owPos){ pl.x=G._owPos.x; pl.y=Math.min(WH-12,G._owPos.y+CELL*1.6); } // step out of the grove
+    G.realm='overworld'; G.inForest=false; G.forestCooldown=150;
+    G.battleTriggered=false;
+    toast('🌤️ You emerge from the forest into the open.');
+  });
+}
+
 function triggerEncounter(cb){
 G.battleTriggered=true;
 const ef=document.getElementById('ef');ef.style.opacity='1';
