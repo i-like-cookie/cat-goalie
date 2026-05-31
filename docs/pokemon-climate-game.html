@@ -1447,11 +1447,20 @@ for(let ray=0;ray<nr;ray++){
   const br=Math.max(.38,1-dist/310);
  
   if(hitType==='dense'){
+    const xp=ray*(w/nr);
+    const sliceW=Math.ceil(w/nr)+1;
+    if(G.realm==='forest'){
+      // Dim jungle depth behind the billboard trees — never a flat green wall.
+      const fb=Math.max(.16,br*.55);
+      const g=ctx.createLinearGradient(0,wt,0,wt+wallH);
+      g.addColorStop(0,`rgb(${Math.floor(26*fb)},${Math.floor(60*fb)},${Math.floor(20*fb)})`);
+      g.addColorStop(1,`rgb(${Math.floor(10*fb)},${Math.floor(24*fb)},${Math.floor(8*fb)})`);
+      ctx.fillStyle=g; ctx.fillRect(xp,wt,sliceW,wallH);
+      continue;
+    }
     // Realistic tree: rounded canopy crown over a central trunk.
     const trunkZone=hitFrac>0.3&&hitFrac<0.7;
     const innerZone=hitFrac>0.4&&hitFrac<0.6;
-    const xp=ray*(w/nr);
-    const sliceW=Math.ceil(w/nr)+1;
     // Crown shaping: canopy columns get shorter toward the outer edges, so
     // the background peeks through and the treetop reads as a rounded dome.
     const edgeD=trunkZone?0:(hitFrac<0.5?0.3-hitFrac:hitFrac-0.7);
